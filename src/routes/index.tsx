@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { ShelfCarousel } from "@/components/ShelfCarousel";
 import { FEATURED, shelves } from "@/data/shows";
 import heroImg from "@/assets/hero-caverna-dragao.jpg";
+import heroPicaPau from "@/assets/hero-picapau.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -83,12 +84,13 @@ function Home() {
                     </Link>
                 </div>
             </div>
-            {/* Player Nativo */}
+            {/* Player Nativo / Capa */}
             <div className="md:w-[55%] bg-black relative aspect-video w-full border-r border-white/5">
-                <video controls preload="metadata" className="absolute top-0 left-0 w-full h-full object-cover bg-black">
-                  <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
-                  Seu navegador não suporta a reprodução deste vídeo.
-                </video>
+                <img 
+                  src={heroPicaPau} 
+                  alt="Pica-Pau" 
+                  className="absolute top-0 left-0 w-full h-full object-cover opacity-80" 
+                />
             </div>
         </div>
       </main>
