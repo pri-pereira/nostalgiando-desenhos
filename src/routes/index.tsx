@@ -27,11 +27,15 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
-  const [clientShelves, setClientShelves] = useState(shelves());
+  const [clientShelves, setClientShelves] = useState<any[]>([]);
 
   useEffect(() => {
-    // Atualiza no lado do cliente para pegar o que está no localStorage
-    setClientShelves(shelves());
+    // Carrega do Firebase + Dados estáticos
+    const loadShelves = async () => {
+      const data = await shelves();
+      setClientShelves(data);
+    };
+    loadShelves();
   }, []);
 
   return (

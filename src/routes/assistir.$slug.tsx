@@ -16,17 +16,16 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PosterCard } from "@/components/PosterCard";
-import { SHOWS, getShow } from "@/data/shows";
+import { getShow, getStaticShow, type Episode, type Show } from "@/data/shows";
 
 export const Route = createFileRoute("/assistir/$slug")({
   loader: ({ params }) => {
-    const show = getShow(params.slug);
-    // Não disparamos throw notFound() aqui porque no servidor (SSR)
-    // o localStorage não existe. Deixamos para resolver no cliente.
+    // Busca estática no SSR para evitar timeout/erros com SDK cliente do Firebase no servidor
+    const show = getStaticShow(params.slug);
     return { show, slug: params.slug };
   },
   head: ({ loaderData }) => {
-    if (!loaderData) {
+    if (!loaderData || !loaderData.show) {
       return {
         meta: [
           { title: "Indisponível — Nostalgiando Desenhos" },
@@ -51,17 +50,19 @@ function Watch() {
   const { show: serverShow, slug } = Route.useLoaderData();
   
   // Resolvemos o show real no cliente.
-  // Isso garante que os desenhos salvos no localStorage sejam encontrados.
-  const [show, setShow] = useState(serverShow);
+  const [show, setShow] = useState<Show | undefined>(serverShow);
 
   useEffect(() => {
     if (!show && typeof window !== "undefined") {
-      const dynamicShow = getShow(slug);
-      if (dynamicShow) {
-        setShow(dynamicShow);
-      }
+      const fetchDynamic = async () => {
+        const dynamicShow = await getShow(slug);
+        if (dynamicShow) {
+          setShow(dynamicShow);
+        }
+      };
+      fetchDynamic();
     }
-  }, [slug, show]);
+  }, [show, slug]);
 
   const [current, setCurrent] = useState(0);
   const [inList, setInList] = useState(false);

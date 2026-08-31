@@ -2,6 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { Search, Tv, Settings } from "lucide-react";
 import { CATEGORIES } from "@/data/shows";
 import { useState } from "react";
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export function SiteHeader() {
   const [showModal, setShowModal] = useState(false);
@@ -18,20 +20,28 @@ export function SiteHeader() {
     }
   };
 
-  const saveShow = () => {
+  const saveShow = async () => {
     if (!admTitle || !admId) {
       alert("Preencha pelo menos o Título e o ID do Archive!");
       return;
     }
-    const shows = JSON.parse(localStorage.getItem("nostalgiando_shows") || "[]");
-    shows.push({ title: admTitle, id: admId, img: admImg });
-    localStorage.setItem("nostalgiando_shows", JSON.stringify(shows));
     
-    setShowModal(false);
-    setAdmTitle("");
-    setAdmId("");
-    setAdmImg("");
-    window.location.reload();
+    try {
+      await addDoc(collection(db, "shows"), {
+        title: admTitle,
+        id: admId,
+        img: admImg,
+      });
+      
+      setShowModal(false);
+      setAdmTitle("");
+      setAdmId("");
+      setAdmImg("");
+      window.location.reload();
+    } catch (e) {
+      console.error("Erro ao adicionar no Firebase: ", e);
+      alert("Erro ao salvar! Verifique a configuração do Firebase.");
+    }
   };
 
   return (

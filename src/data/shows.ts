@@ -413,33 +413,50 @@ export const SHOWS: Show[] = [
 
 export const FEATURED = SHOWS[0]!;
 
-export const getDynamicShows = (): Show[] => {
-  if (typeof window === "undefined") return [];
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+export const getDynamicShows = async (): Promise<Show[]> => {
   try {
-    const saved = JSON.parse(localStorage.getItem("nostalgiando_shows") || "[]");
-    return saved.map((s: any) => ({
-      slug: s.id,
-      title: s.title,
-      year: "Comunidade",
-      category: "acervo",
-      poster: s.img || "https://via.placeholder.com/800x1200/111827/ffffff?text=Sem+Imagem",
-      synopsis: "Desenho adicionado através do painel de administrador. Aproveite todos os episódios completos disponíveis no acervo!",
-      archiveId: s.id,
-      episodes: [],
-    }));
+    const querySnapshot = await getDocs(collection(db, "shows"));
+    const saved: Show[] = [];
+    querySnapshot.forEach((doc) => {
+      const s = doc.data();
+      saved.push({
+        slug: s.id,
+        title: s.title,
+        year: "Comunidade",
+        category: "acervo",
+        poster: s.img || "https://via.placeholder.com/800x1200/111827/ffffff?text=Sem+Imagem",
+        synopsis: "Desenho adicionado através do painel de administrador. Aproveite todos os episódios completos disponíveis no acervo!",
+        archiveId: s.id,
+        episodes: [],
+      });
+    });
+    return saved;
   } catch (e) {
+    console.error("Erro ao buscar do Firebase", e);
     return [];
   }
 };
 
-export const getAllShows = (): Show[] => [...getDynamicShows(), ...SHOWS];
+export const getAllShows = async (): Promise<Show[]> => {
+  const dynamic = await getDynamicShows();
+  return [...dynamic, ...SHOWS];
+};
 
-export const getShow = (slug: string) => getAllShows().find((s) => s.slug === slug);
+export const getShow = async (slug: string) => {
+  const allShows = await getAllShows();
+  return allShows.find((s) => s.slug === slug);
+};
 
-export const shelves = () => {
-  const allShows = getAllShows();
+export const shelves = async () => {
+  const allShows = await getAllShows();
   return CATEGORIES.filter((c) => c.id !== "todos").map((c) => ({
     ...c,
     shows: allShows.filter((s) => s.category === c.id),
   }));
 };
+
+// Mantido para compatibilidade síncrona temporária onde precisar
+export const getStaticShow = (slug: string) => SHOWS.find((s) => s.slug === slug);
