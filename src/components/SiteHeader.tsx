@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { Search, Tv, Settings } from "lucide-react";
 import { CATEGORIES } from "@/data/shows";
 import { useState } from "react";
-import { CATEGORIES } from "@/data/shows";
 
 export function SiteHeader() {
   const [showModal, setShowModal] = useState(false);
