@@ -1,15 +1,15 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs, addDoc, doc, setDoc } from "firebase/firestore";
 
-// TODO: O usuário precisará substituir as chaves abaixo (apiKey e appId) com as reais geradas pelo Firebase.
+// Usa variáveis de ambiente para esconder as chaves do GitHub
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY_AQUI", // ⚠️ IMPORTANTE: Substitua pela sua API Key real
-  authDomain: "nostalgiando-desenhos.firebaseapp.com",
-  projectId: "nostalgiando-desenhos",
-  storageBucket: "nostalgiando-desenhos.firebasestorage.app",
-  messagingSenderId: "934707372124",
-  appId: "SUA_APP_ID_AQUI", // ⚠️ IMPORTANTE: Substitua pelo seu App ID real
-  measurementId: "G-552210905"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
