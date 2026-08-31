@@ -21,8 +21,9 @@ import { SHOWS, getShow } from "@/data/shows";
 export const Route = createFileRoute("/assistir/$slug")({
   loader: ({ params }) => {
     const show = getShow(params.slug);
-    if (!show) throw notFound();
-    return { show };
+    // Não disparamos throw notFound() aqui porque no servidor (SSR)
+    // o localStorage não existe. Deixamos para resolver no cliente.
+    return { show, slug: params.slug };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
@@ -47,7 +48,21 @@ export const Route = createFileRoute("/assistir/$slug")({
 });
 
 function Watch() {
-  const { show } = Route.useLoaderData();
+  const { show: serverShow, slug } = Route.useLoaderData();
+  
+  // Resolvemos o show real no cliente.
+  // Isso garante que os desenhos salvos no localStorage sejam encontrados.
+  const [show, setShow] = useState(serverShow);
+
+  useEffect(() => {
+    if (!show && typeof window !== "undefined") {
+      const dynamicShow = getShow(slug);
+      if (dynamicShow) {
+        setShow(dynamicShow);
+      }
+    }
+  }, [slug, show]);
+
   const [current, setCurrent] = useState(0);
   const [inList, setInList] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -59,7 +74,7 @@ function Watch() {
 
   // Efeito para buscar episódios dinâmicos se o show possuir archiveId
   useEffect(() => {
-    if (show.archiveId) {
+    if (show?.archiveId) {
       setIsLoading(true);
       fetch(`https://archive.org/metadata/${show.archiveId}`)
         .then((res) => res.json())
@@ -101,11 +116,19 @@ function Watch() {
         .catch(console.error)
         .finally(() => setIsLoading(false));
     }
-  }, [show.slug]);
+  }, [show?.slug, show?.archiveId]);
+
+  if (!show) {
+    return (
+      <div className="min-h-screen bg-background pt-28 pb-16 flex items-center justify-center">
+        <h1 className="text-2xl text-white">Carregando...</h1>
+      </div>
+    );
+  }
 
   // Define a lista de episódios (dinâmica ou estática do mock)
-  const episodesList = dynamicEpisodes.length > 0 ? dynamicEpisodes : show.episodes;
-  const episode = episodesList[current] || show.episodes[0];
+  const episodesList = dynamicEpisodes.length > 0 ? dynamicEpisodes : (show.episodes || []);
+  const episode = episodesList[current] || (show.episodes ? show.episodes[0] : null);
   const related = SHOWS.filter((s) => s.slug !== show.slug).slice(0, 6);
 
   const handleShare = () => {

@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Play, Info, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ShelfCarousel } from "@/components/ShelfCarousel";
 import { FEATURED, shelves } from "@/data/shows";
@@ -25,6 +26,13 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
+  const [clientShelves, setClientShelves] = useState(shelves());
+
+  useEffect(() => {
+    // Atualiza no lado do cliente para pegar o que está no localStorage
+    setClientShelves(shelves());
+  }, []);
+
   return (
     <div className="min-h-screen bg-background pt-32 sm:pt-28">
       <SiteHeader />
@@ -87,7 +95,7 @@ function Home() {
 
       {/* PRATELEIRAS DE VÍDEOS (CARROSSÉIS HORIZONTAIS) */}
       <div className="mx-auto max-w-7xl space-y-12 px-4 py-4 sm:px-6 pb-20">
-        {shelves().map((shelf) => (
+        {clientShelves.map((shelf) => (
           <ShelfCarousel
             key={shelf.id}
             id={shelf.id}
