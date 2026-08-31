@@ -31,11 +31,18 @@ export type Show = {
   category: CategoryId;
   poster: string;
   synopsis: string;
+  archiveId?: string; // Para consumir dinamicamente a API do Internet Archive
   episodes: Episode[];
 };
 
 export const CATEGORIES = [
   { id: "todos", label: "Todos", shortLabel: "Todos", description: "Todos os clássicos reunidos" },
+  {
+    id: "acervo",
+    label: "Acervo Comunitário",
+    shortLabel: "Acervo",
+    description: "Desenhos adicionados através do painel de administrador.",
+  },
   {
     id: "classicos-tv-aberta",
     label: "Clássicos da TV Aberta",
@@ -83,6 +90,7 @@ export const SHOWS: Show[] = [
     year: "1983",
     category: "aventura-fantasia",
     poster: heroCaverna,
+    archiveId: "caverna-do-dragao-completo-ptbr-paixaoflix",
     synopsis:
       "Seis jovens entram em uma montanha-russa mágica e acabam presos em um reino de aventuras, monstros e magia. Acompanhe a jornada épica de Hank, Eric, Diana, Presto, Sheila e Bobby em busca do caminho de casa.",
     episodes: [
@@ -405,10 +413,33 @@ export const SHOWS: Show[] = [
 
 export const FEATURED = SHOWS[0]!;
 
-export const getShow = (slug: string) => SHOWS.find((s) => s.slug === slug);
+export const getDynamicShows = (): Show[] => {
+  if (typeof window === "undefined") return [];
+  try {
+    const saved = JSON.parse(localStorage.getItem("nostalgiando_shows") || "[]");
+    return saved.map((s: any) => ({
+      slug: s.id,
+      title: s.title,
+      year: "Comunidade",
+      category: "acervo",
+      poster: s.img || "https://via.placeholder.com/800x1200/111827/ffffff?text=Sem+Imagem",
+      synopsis: "Desenho adicionado através do painel de administrador. Aproveite todos os episódios completos disponíveis no acervo!",
+      archiveId: s.id,
+      episodes: [],
+    }));
+  } catch (e) {
+    return [];
+  }
+};
 
-export const shelves = () =>
-  CATEGORIES.filter((c) => c.id !== "todos").map((c) => ({
+export const getAllShows = (): Show[] => [...getDynamicShows(), ...SHOWS];
+
+export const getShow = (slug: string) => getAllShows().find((s) => s.slug === slug);
+
+export const shelves = () => {
+  const allShows = getAllShows();
+  return CATEGORIES.filter((c) => c.id !== "todos").map((c) => ({
     ...c,
-    shows: SHOWS.filter((s) => s.category === c.id),
+    shows: allShows.filter((s) => s.category === c.id),
   }));
+};

@@ -57,11 +57,11 @@ function Watch() {
   const [dynamicEpisodes, setDynamicEpisodes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Efeito para buscar episódios dinâmicos se for Caverna do Dragão
+  // Efeito para buscar episódios dinâmicos se o show possuir archiveId
   useEffect(() => {
-    if (show.slug === "caverna-do-dragao") {
+    if (show.archiveId) {
       setIsLoading(true);
-      fetch("https://archive.org/metadata/caverna-do-dragao-completo-ptbr-paixaoflix")
+      fetch(`https://archive.org/metadata/${show.archiveId}`)
         .then((res) => res.json())
         .then((data) => {
           if (data && data.files) {
@@ -92,7 +92,7 @@ function Watch() {
                 title: f.title || cleanName || `Episódio ${idx + 1}`,
                 synopsis: "Episódio resgatado do acervo clássico dublado.",
                 duration: duration,
-                videoUrl: `https://archive.org/download/caverna-do-dragao-completo-ptbr-paixaoflix/${f.name}`,
+                videoUrl: `https://archive.org/download/${show.archiveId}/${f.name}`,
               };
             });
             setDynamicEpisodes(mapped);
