@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nostalgiando Desenhos</title>
+    <!-- Tailwind CSS para o visual moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Proporção 16:9 para os vídeos do YouTube não quebrarem no celular */
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; 
+            height: 0;
+        }
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* Efeito de Vidro (Glassmorphism) na barra superior */
+        .glass-header {
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans antialiased overflow-x-hidden">
+
+    <!-- Navbar -->
+    <header class="fixed w-full top-0 z-50 glass-header">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-400 tracking-wider">
+                        NOSTALGIANDO
+                    </h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#" class="bg-orange-500 text-white px-3 py-2 rounded-md text-sm font-bold">Início</a>
+                        <a href="#" class="text-gray-300 hover:text-orange-400 px-3 py-2 rounded-md text-sm font-medium transition">Hanna-Barbera</a>
+                        <a href="#" class="text-gray-300 hover:text-orange-400 px-3 py-2 rounded-md text-sm font-medium transition">Tokusatsu</a>
+                        <a href="#" class="text-gray-300 hover:text-orange-400 px-3 py-2 rounded-md text-sm font-medium transition">Clássicos da TV</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Espaçamento para o menu fixo -->
+    <div class="pt-20"></div>
+
+    <!-- Destaque 1: Caverna do Dragão -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="bg-gray-800 rounded-2xl overflow-hidden shadow-2xl border border-gray-700 mb-12 flex flex-col md:flex-row">
+            <!-- Informações -->
+            <div class="p-8 md:w-1/3 flex flex-col justify-center">
+                <span class="text-orange-400 font-bold uppercase tracking-widest text-sm mb-2">Aventura Épica</span>
+                <h2 class="text-4xl font-extrabold text-white mb-4">Caverna do Dragão</h2>
+                <p class="text-gray-400 mb-6 text-sm leading-relaxed">
+                    Seis jovens entram em uma montanha-russa mágica e acabam presos em um reino de aventuras, monstros e magia. Acompanhe a jornada épica em busca do caminho de casa!
+                </p>
+                <div class="flex space-x-3">
+                    <div class="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold text-center w-full shadow-lg shadow-orange-500/30">
+                        ▶ Série Completa na TV
+                    </div>
+                </div>
+            </div>
+            <!-- Player do YouTube (Playlist) -->
+            <div class="md:w-2/3 bg-black relative">
+                <div class="aspect-video w-full h-full relative">
+                    <iframe src="https://www.youtube.com/embed/videoseries?list=PLFF89A429AFE1DB19" title="Caverna do Dragão - Playlist Completa" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen class="absolute top-0 left-0 w-full h-full rounded-r-2xl max-md:rounded-b-2xl max-md:rounded-tr-none shadow-2xl"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- Destaque 2: Pica-Pau -->
+        <div class="bg-gray-800 rounded-2xl overflow-hidden shadow-2xl border border-gray-700 mb-12 flex flex-col md:flex-row-reverse">
+            <!-- Informações -->
+            <div class="p-8 md:w-1/3 flex flex-col justify-center">
+                <span class="text-yellow-400 font-bold uppercase tracking-widest text-sm mb-2">Comédia Clássica</span>
+                <h2 class="text-4xl font-extrabold text-white mb-4">Pica-Pau</h2>
+                <p class="text-gray-400 mb-6 text-sm leading-relaxed">
+                    As maiores loucuras e confusões do pássaro mais maluco da televisão. Prepare-se para rir sem parar com os episódios que marcaram gerações nas manhãs da TV brasileira.
+                </p>
+                <div class="flex space-x-3">
+                    <div class="bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg font-bold text-center w-full shadow-lg shadow-yellow-500/30">
+                        ▶ Assistir aos Episódios
+                    </div>
+                </div>
+            </div>
+            <!-- Player do YouTube (Playlist) -->
+            <div class="md:w-2/3 bg-black relative">
+                <div class="aspect-video w-full h-full relative">
+                    <iframe src="https://www.youtube.com/embed/ng8QsbeRjNI?list=PLoTzjLC7520I1QeeYxY2yD8lLKul3qyPY" title="Pica-Pau - Playlist Completa" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen class="absolute top-0 left-0 w-full h-full rounded-l-2xl max-md:rounded-b-2xl max-md:rounded-tl-none shadow-2xl"></iframe>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="bg-gray-950 py-8 text-center text-gray-500 text-sm mt-12 border-t border-gray-800">
+        <p>© 2024 Nostalgiando Desenhos. Feito de fã para fã.</p>
+    </footer>
+
+</body>
+</html>
