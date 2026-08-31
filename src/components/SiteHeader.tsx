@@ -35,9 +35,10 @@ export function SiteHeader() {
   };
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-background/50 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/40">
-      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:justify-between">
+    <>
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-background/50 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/40">
+        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:justify-between">
           <Link to="/" className="flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-80">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-amber-600 text-primary-foreground shadow-[0_0_15px_rgba(217,119,6,0.5)]">
               <Tv className="h-5 w-5" />
@@ -89,6 +90,8 @@ export function SiteHeader() {
         </nav>
       </div>
 
+    </header>
+      
       {/* Modal ADM */}
       {showModal && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
@@ -143,6 +146,6 @@ export function SiteHeader() {
           </div>
         </div>
       )}
-    </header>
+    </>
   );
 }
