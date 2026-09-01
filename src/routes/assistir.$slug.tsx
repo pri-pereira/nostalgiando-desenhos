@@ -82,7 +82,7 @@ function Watch() {
         .then((data) => {
           if (data && data.files) {
             // Filtra apenas arquivos .mp4 e ordena pelo nome (opcional, para garantir ordem)
-            const mp4Files = data.files.filter((f: any) => f.name.endsWith(".mp4")).sort((a: any, b: any) => a.name.localeCompare(b.name));
+            const mp4Files = data.files.filter((f: any) => f?.name?.endsWith(".mp4")).sort((a: any, b: any) => (a?.name || "").localeCompare(b?.name || ""));
             
             const mapped = mp4Files.map((f: any, idx: number) => {
               // Tenta extrair a duração se disponível (em segundos)
