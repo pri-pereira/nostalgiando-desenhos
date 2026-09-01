@@ -2,8 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { Search, Tv, Settings } from "lucide-react";
 import { CATEGORIES } from "@/data/shows";
 import { useState } from "react";
-import { collection, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export function SiteHeader() {
   const [showModal, setShowModal] = useState(false);
@@ -27,11 +25,14 @@ export function SiteHeader() {
     }
     
     try {
-      await addDoc(collection(db, "shows"), {
+      const existing = localStorage.getItem("nostalgiando_shows");
+      const shows = existing ? JSON.parse(existing) : [];
+      shows.push({
         title: admTitle,
         id: admId,
         img: admImg,
       });
+      localStorage.setItem("nostalgiando_shows", JSON.stringify(shows));
       
       setShowModal(false);
       setAdmTitle("");
@@ -39,8 +40,8 @@ export function SiteHeader() {
       setAdmImg("");
       window.location.reload();
     } catch (e) {
-      console.error("Erro ao adicionar no Firebase: ", e);
-      alert("Erro ao salvar! Verifique a configuração do Firebase.");
+      console.error("Erro ao salvar: ", e);
+      alert("Erro ao salvar localmente!");
     }
   };
 

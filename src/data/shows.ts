@@ -413,29 +413,50 @@ export const SHOWS: Show[] = [
 
 export const FEATURED = SHOWS[0]!;
 
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-
 export const getDynamicShows = async (): Promise<Show[]> => {
   try {
-    const querySnapshot = await getDocs(collection(db, "shows"));
-    const saved: Show[] = [];
-    querySnapshot.forEach((doc) => {
-      const s = doc.data();
-      saved.push({
-        slug: s.id,
-        title: s.title,
+    const defaultShows: Show[] = [
+      {
+        slug: "corrida-malucadublado",
+        title: "Corrida Maluca",
         year: "Comunidade",
         category: "acervo",
-        poster: s.img || "https://via.placeholder.com/800x1200/111827/ffffff?text=Sem+Imagem",
+        poster: "https://i.pinimg.com/736x/b2/14/fe/b214fe98d87fad3c8f94a535bd5cdd4f.jpg",
         synopsis: "Desenho adicionado através do painel de administrador. Aproveite todos os episódios completos disponíveis no acervo!",
-        archiveId: s.id,
+        archiveId: "corrida-malucadublado",
         episodes: [],
-      });
-    });
-    return saved;
+      },
+      {
+        slug: "caverna-do-dragao_202508",
+        title: "Caverna do Dragão",
+        year: "Comunidade",
+        category: "acervo",
+        poster: "https://br.web.img3.acsta.net/r_1280_720/pictures/22/08/10/21/25/5951896.jpg",
+        synopsis: "Desenho adicionado através do painel de administrador. Aproveite todos os episódios completos disponíveis no acervo!",
+        archiveId: "caverna-do-dragao_202508",
+        episodes: [],
+      }
+    ];
+
+    if (typeof window === "undefined") return defaultShows;
+    const savedData = localStorage.getItem("nostalgiando_shows");
+    if (!savedData) return defaultShows;
+    
+    const parsed = JSON.parse(savedData);
+    const localShows: Show[] = parsed.map((s: any) => ({
+      slug: s.id,
+      title: s.title,
+      year: "Comunidade",
+      category: "acervo",
+      poster: s.img || "https://via.placeholder.com/800x1200/111827/ffffff?text=Sem+Imagem",
+      synopsis: "Desenho adicionado através do painel de administrador. Aproveite todos os episódios completos disponíveis no acervo!",
+      archiveId: s.id,
+      episodes: [],
+    }));
+
+    return [...defaultShows, ...localShows];
   } catch (e) {
-    console.error("Erro ao buscar do Firebase", e);
+    console.error("Erro ao buscar do LocalStorage", e);
     return [];
   }
 };
