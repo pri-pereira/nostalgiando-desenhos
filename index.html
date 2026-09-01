@@ -5,24 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nostalgiando Desenhos</title>
     <link rel="icon" type="image/jpeg" href="favicon.jpg">
-    <!-- Tailwind CSS para o visual moderno -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Proporção 16:9 para os vídeos do YouTube não quebrarem no celular */
-        .video-container {
-            position: relative;
-            width: 100%;
-            padding-bottom: 56.25%; 
-            height: 0;
-        }
-        .video-container iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-        /* Efeito de Vidro (Glassmorphism) na barra superior */
         .glass-header {
             background: rgba(17, 24, 39, 0.8);
             backdrop-filter: blur(10px);
@@ -41,74 +25,177 @@
                         NOSTALGIANDO
                     </h1>
                 </div>
-                <div class="hidden md:block">
-                    <div class="ml-10 flex items-baseline space-x-4">
-                        <a href="#" class="bg-orange-500 text-white px-3 py-2 rounded-md text-sm font-bold">Início</a>
-                        <a href="#" class="text-gray-300 hover:text-orange-400 px-3 py-2 rounded-md text-sm font-medium transition">Hanna-Barbera</a>
-                        <a href="#" class="text-gray-300 hover:text-orange-400 px-3 py-2 rounded-md text-sm font-medium transition">Tokusatsu</a>
-                        <a href="#" class="text-gray-300 hover:text-orange-400 px-3 py-2 rounded-md text-sm font-medium transition">Clássicos da TV</a>
-                    </div>
+                <div class="hidden md:flex items-center space-x-4">
+                    <a href="#" class="bg-orange-500 text-white px-3 py-2 rounded-md text-sm font-bold">Início</a>
+                    <a href="#" class="text-gray-300 hover:text-orange-400 px-3 py-2 rounded-md text-sm font-medium transition">Hanna-Barbera</a>
+                    <a href="#" class="text-gray-300 hover:text-orange-400 px-3 py-2 rounded-md text-sm font-medium transition">Tokusatsu</a>
+                    <button onclick="openAdm()" class="text-gray-500 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition" title="Painel Administrador">⚙️ ADM</button>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Espaçamento para o menu fixo -->
-    <div class="pt-20"></div>
+    <!-- Espaçamento -->
+    <div class="pt-24"></div>
 
-    <!-- Destaque 1: Caverna do Dragão -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="vitrine-container">
+        
+        <!-- Destaque 1: Caverna do Dragão -->
         <div class="bg-gray-800 rounded-2xl overflow-hidden shadow-2xl border border-gray-700 mb-12 flex flex-col md:flex-row">
-            <!-- Informações -->
-            <div class="p-8 md:w-1/3 flex flex-col justify-center">
+            <div class="p-8 md:w-1/2 flex flex-col justify-center">
                 <span class="text-orange-400 font-bold uppercase tracking-widest text-sm mb-2">Aventura Épica</span>
                 <h2 class="text-4xl font-extrabold text-white mb-4">Caverna do Dragão</h2>
                 <p class="text-gray-400 mb-6 text-sm leading-relaxed">
                     Seis jovens entram em uma montanha-russa mágica e acabam presos em um reino de aventuras, monstros e magia. Acompanhe a jornada épica em busca do caminho de casa!
                 </p>
                 <div class="flex space-x-3">
-                    <div class="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold text-center w-full shadow-lg shadow-orange-500/30">
-                        ▶ Série Completa na TV
-                    </div>
+                    <a href="player.html?id=caverna-do-dragao-completo-ptbr-paixaoflix" class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-bold text-center shadow-lg shadow-orange-500/30 transition block w-fit">
+                        ▶ Assistir Série Completa
+                    </a>
                 </div>
             </div>
-            <!-- Player do YouTube (Playlist) -->
-            <div class="md:w-2/3 bg-black relative">
-                <div class="aspect-video w-full h-full relative">
-                    <iframe src="https://www.youtube.com/embed/videoseries?list=PLFF89A429AFE1DB19&modestbranding=1&rel=0" title="Caverna do Dragão - Playlist Completa" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen class="absolute top-0 left-0 w-full h-full rounded-r-2xl max-md:rounded-b-2xl max-md:rounded-tr-none shadow-2xl"></iframe>
-                </div>
+            <div class="md:w-1/2 bg-black relative min-h-[300px]">
+                <img src="https://m.media-amazon.com/images/M/MV5BMGE0YzliOWUtNjAxZi00YmU3LTlhNWMtMzZkYmIyZmZiZWNiXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg" alt="Poster Caverna do Dragão" class="absolute w-full h-full object-cover opacity-80" />
             </div>
         </div>
 
         <!-- Destaque 2: Pica-Pau -->
         <div class="bg-gray-800 rounded-2xl overflow-hidden shadow-2xl border border-gray-700 mb-12 flex flex-col md:flex-row-reverse">
-            <!-- Informações -->
-            <div class="p-8 md:w-1/3 flex flex-col justify-center">
+            <div class="p-8 md:w-1/2 flex flex-col justify-center">
                 <span class="text-yellow-400 font-bold uppercase tracking-widest text-sm mb-2">Comédia Clássica</span>
                 <h2 class="text-4xl font-extrabold text-white mb-4">Pica-Pau</h2>
                 <p class="text-gray-400 mb-6 text-sm leading-relaxed">
                     As maiores loucuras e confusões do pássaro mais maluco da televisão. Prepare-se para rir sem parar com os episódios que marcaram gerações nas manhãs da TV brasileira.
                 </p>
                 <div class="flex space-x-3">
-                    <div class="bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg font-bold text-center w-full shadow-lg shadow-yellow-500/30">
+                    <a href="player.html?id=pica-pau-anos-40" class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 px-6 py-3 rounded-lg font-bold text-center shadow-lg shadow-yellow-500/30 transition block w-fit">
                         ▶ Assistir aos Episódios
-                    </div>
+                    </a>
                 </div>
             </div>
-            <!-- Player do YouTube (Playlist) -->
-            <div class="md:w-2/3 bg-black relative">
-                <div class="aspect-video w-full h-full relative">
-                    <iframe src="https://www.youtube.com/embed/ng8QsbeRjNI?list=PLoTzjLC7520I1QeeYxY2yD8lLKul3qyPY&modestbranding=1&rel=0" title="Pica-Pau - Playlist Completa" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen class="absolute top-0 left-0 w-full h-full rounded-l-2xl max-md:rounded-b-2xl max-md:rounded-tl-none shadow-2xl"></iframe>
-                </div>
+            <div class="md:w-1/2 bg-black relative min-h-[300px]">
+                <img src="https://m.media-amazon.com/images/I/71u9sX9S1eL._AC_UF894,1000_QL80_.jpg" alt="Poster Pica-Pau" class="absolute w-full h-full object-cover opacity-80" />
             </div>
         </div>
+        
+        <!-- Div para renderizar os cartazes dinâmicos -->
+        <div id="dynamic-shows"></div>
 
     </main>
+
+    <!-- Modal ADM (Oculto) -->
+    <div id="adm-modal" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-700 p-6 rounded-xl w-full max-w-md shadow-2xl relative">
+            <button onclick="closeAdm()" class="absolute top-4 right-4 text-gray-400 hover:text-white font-bold">✕</button>
+            <h3 class="text-xl font-bold mb-4 text-orange-400">Adicionar Novo Desenho</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Título do Desenho</label>
+                    <input id="adm-title" type="text" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none focus:border-orange-500" placeholder="Ex: Batman Animated Series">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">ID do Internet Archive</label>
+                    <input id="adm-id" type="text" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none focus:border-orange-500" placeholder="Ex: batman-animated-1992">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">URL da Imagem (Pôster)</label>
+                    <input id="adm-img" type="text" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none focus:border-orange-500" placeholder="https://link-da-imagem.jpg">
+                </div>
+                
+                <button onclick="saveShow()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded mt-2 transition">
+                    Salvar e Adicionar à Vitrine
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Rodapé -->
     <footer class="bg-gray-950 py-8 text-center text-gray-500 text-sm mt-12 border-t border-gray-800">
         <p>© 2024 Nostalgiando Desenhos. Feito de fã para fã.</p>
     </footer>
 
+    <script>
+    // Recupera os desenhos salvos no localStorage
+    function loadDynamicShows() {
+        const shows = JSON.parse(localStorage.getItem('nostalgiando_shows') || '[]');
+        const container = document.getElementById('dynamic-shows');
+        container.innerHTML = '';
+        
+        shows.forEach((show, index) => {
+            // Intercala o layout (esquerda/direita) baseado no index
+            const isReverse = index % 2 === 0;
+            
+            const cardHTML = `
+                <div class="bg-gray-800 rounded-2xl overflow-hidden shadow-2xl border border-gray-700 mb-12 flex flex-col ${isReverse ? 'md:flex-row-reverse' : 'md:flex-row'} relative group">
+                    <button onclick="removeShow(${index})" class="absolute top-4 right-4 bg-red-600/80 hover:bg-red-500 text-white px-2 py-1 rounded text-xs z-10 opacity-0 group-hover:opacity-100 transition">Remover</button>
+                    <div class="p-8 md:w-1/2 flex flex-col justify-center">
+                        <span class="text-blue-400 font-bold uppercase tracking-widest text-sm mb-2">Acervo Comunitário</span>
+                        <h2 class="text-4xl font-extrabold text-white mb-4">${show.title}</h2>
+                        <p class="text-gray-400 mb-6 text-sm leading-relaxed">
+                            Desenho adicionado através do painel de administrador. Aproveite todos os episódios completos disponíveis no acervo!
+                        </p>
+                        <div class="flex space-x-3">
+                            <a href="player.html?id=${show.id}" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold text-center shadow-lg shadow-blue-500/30 transition block w-fit">
+                                ▶ Assistir Série Completa
+                            </a>
+                        </div>
+                    </div>
+                    <div class="md:w-1/2 bg-black relative min-h-[300px]">
+                        <img src="${show.img || 'https://via.placeholder.com/800x600/111827/ffffff?text=Sem+Imagem'}" alt="Poster ${show.title}" class="absolute w-full h-full object-cover opacity-80" />
+                    </div>
+                </div>
+            `;
+            container.innerHTML += cardHTML;
+        });
+    }
+
+    function openAdm() {
+        const pass = prompt('Digite a senha de administrador (4 dígitos):');
+        if (pass === '1010') {
+            document.getElementById('adm-modal').classList.remove('hidden');
+        } else if (pass !== null) {
+            alert('Senha incorreta!');
+        }
+    }
+
+    function closeAdm() {
+        document.getElementById('adm-modal').classList.add('hidden');
+    }
+
+    function saveShow() {
+        const title = document.getElementById('adm-title').value.trim();
+        const id = document.getElementById('adm-id').value.trim();
+        const img = document.getElementById('adm-img').value.trim();
+        
+        if (!title || !id) {
+            alert('Preencha pelo menos o Título e o ID do Archive!');
+            return;
+        }
+
+        const shows = JSON.parse(localStorage.getItem('nostalgiando_shows') || '[]');
+        shows.push({ title, id, img });
+        localStorage.setItem('nostalgiando_shows', JSON.stringify(shows));
+        
+        // Limpa os campos e recarrega
+        document.getElementById('adm-title').value = '';
+        document.getElementById('adm-id').value = '';
+        document.getElementById('adm-img').value = '';
+        closeAdm();
+        loadDynamicShows();
+    }
+    
+    function removeShow(index) {
+        if(confirm('Tem certeza que deseja remover este desenho?')) {
+            const shows = JSON.parse(localStorage.getItem('nostalgiando_shows') || '[]');
+            shows.splice(index, 1);
+            localStorage.setItem('nostalgiando_shows', JSON.stringify(shows));
+            loadDynamicShows();
+        }
+    }
+
+    // Carrega os cartazes dinâmicos ao iniciar
+    window.addEventListener('DOMContentLoaded', loadDynamicShows);
+    </script>
 </body>
 </html>

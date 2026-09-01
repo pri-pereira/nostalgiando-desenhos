@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nostalgiando Player</title>
+    <link rel="icon" type="image/jpeg" href="favicon.jpg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass-header {
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans antialiased h-screen flex flex-col overflow-hidden">
+
+    <!-- Navbar -->
+    <header class="w-full top-0 z-50 glass-header flex-shrink-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-400 tracking-wider">
+                        NOSTALGIANDO
+                    </h1>
+                </div>
+                <div>
+                    <a href="index.html" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-bold transition">Voltar à Vitrine</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Player Container Principal -->
+    <main class="flex-grow flex flex-col lg:flex-row bg-black overflow-hidden">
+        <!-- Video Player -->
+        <div class="w-full lg:w-3/4 bg-black relative flex flex-col border-r border-gray-800">
+            <h3 id="current-title" class="text-white font-bold p-3 bg-gray-900 border-b border-gray-800 text-sm md:text-base flex-shrink-0">Carregando...</h3>
+            <div class="flex-grow flex items-center justify-center bg-black relative">
+                <video id="main-player" controls preload="metadata" class="absolute inset-0 w-full h-full object-contain">
+                    Seu navegador não suporta a reprodução deste vídeo.
+                </video>
+            </div>
+        </div>
+        <!-- Playlist -->
+        <div id="playlist" class="w-full lg:w-1/4 h-64 lg:h-full overflow-y-auto bg-gray-900 p-2 flex flex-col space-y-1">
+            <p class="text-xs text-gray-400 text-center py-4">Carregando episódios...</p>
+        </div>
+    </main>
+
+    <script>
+    async function loadArchiveVideos() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const archiveId = urlParams.get('id');
+
+        if (!archiveId) {
+            if (document.getElementById('current-title')) {
+                document.getElementById('current-title').innerText = 'Nenhum desenho selecionado.';
+            }
+            return;
+        }
+
+        const apiUrl = `https://archive.org/metadata/${archiveId}`;
+        const downloadBaseUrl = `https://archive.org/download/${archiveId}/`;
+        
+        try {
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+            
+            const videos = data.files.filter(file => file.name.endsWith('.mp4')).sort((a, b) => a.name.localeCompare(b.name));
+            
+            const player = document.getElementById('main-player');
+            const playlistContainer = document.getElementById('playlist');
+            const currentTitle = document.getElementById('current-title');
+
+            if (videos.length > 0) {
+                player.src = downloadBaseUrl + videos[0].name;
+                if (currentTitle) currentTitle.innerText = formatName(videos[0].name);
+                playlistContainer.innerHTML = '';
+            } else {
+                if (currentTitle) currentTitle.innerText = 'Nenhum vídeo em MP4 encontrado nesta pasta.';
+                playlistContainer.innerHTML = '<p class="text-xs text-red-400 text-center py-4">Nenhum episódio encontrado.</p>';
+            }
+
+            let currentActiveBtn = null;
+            videos.forEach((video, index) => {
+                const btn = document.createElement('button');
+                const cleanName = formatName(video.name);
+                
+                btn.className = 'text-left px-3 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-medium text-gray-300 transition-all border border-transparent w-full';
+                btn.innerText = `${index + 1}. ${cleanName}`;
+
+                if (index === 0) {
+                    btn.classList.add('border-orange-500', 'text-orange-400', 'bg-gray-700');
+                    currentActiveBtn = btn;
+                }
+                
+                btn.onclick = () => {
+                    if (currentActiveBtn) {
+                        currentActiveBtn.classList.remove('border-orange-500', 'text-orange-400', 'bg-gray-700');
+                    }
+                    btn.classList.add('border-orange-500', 'text-orange-400', 'bg-gray-700');
+                    currentActiveBtn = btn;
+
+                    player.src = downloadBaseUrl + video.name;
+                    player.play();
+                    if (currentTitle) currentTitle.innerText = cleanName;
+                };
+                
+                playlistContainer.appendChild(btn);
+            });
+
+        } catch (error) {
+            console.error('Erro ao carregar episódios:', error);
+            if (document.getElementById('current-title')) {
+                document.getElementById('current-title').innerText = 'Erro ao carregar a lista de episódios.';
+            }
+        }
+    }
+
+    function formatName(filename) {
+        return decodeURIComponent(filename)
+            .replace('.mp4', '')
+            .replace(/_/g, ' ')
+            .replace(/-/g, ' ')
+            .replace(/\+/g, ' ')
+            .replace(/ready/gi, '')
+            .trim();
+    }
+
+    loadArchiveVideos();
+    </script>
+</body>
+</html>
