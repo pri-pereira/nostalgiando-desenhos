@@ -32,3 +32,6 @@ dist-ssr
 *.sw?
 
 .workspace/
+
+# Environment Variables
+.env
