@@ -129,7 +129,13 @@ function Watch() {
 
   // Define a lista de episódios (dinâmica ou estática do mock)
   const episodesList = dynamicEpisodes.length > 0 ? dynamicEpisodes : (show.episodes || []);
-  const episode = episodesList[current] || (show.episodes ? show.episodes[0] : null);
+  const episode = episodesList[current] || (show.episodes && show.episodes.length > 0 ? show.episodes[0] : {
+    id: "empty",
+    title: "Sem Episódios",
+    synopsis: "Nenhum episódio foi encontrado para este desenho ainda.",
+    duration: "--:--",
+    videoUrl: ""
+  });
   const related = SHOWS.filter((s) => s.slug !== show.slug).slice(0, 6);
 
   const handleShare = () => {
@@ -371,13 +377,18 @@ function Watch() {
                   </h2>
                 </div>
                 <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-bold text-primary">
-                  {show.episodes.length} ep.
+                  {episodesList.length} ep.
                 </span>
               </div>
 
               {/* LISTA VERTICAL ROLÁVEL DE EPISÓDIOS */}
               <div className="mt-3 flex flex-col gap-2.5 max-h-[580px] overflow-y-auto pr-1 scroll-smooth [scrollbar-width:thin]">
-                {show.episodes.map((epItem, index) => {
+                {episodesList.length === 0 && (
+                   <div className="text-center p-4 text-muted-foreground text-sm">
+                      Nenhum episódio listado.
+                   </div>
+                )}
+                {episodesList.map((epItem, index) => {
                   const isActive = index === current;
                   return (
                     <button

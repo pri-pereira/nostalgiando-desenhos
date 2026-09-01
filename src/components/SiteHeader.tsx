@@ -13,7 +13,7 @@ export function SiteHeader() {
 
   const openAdm = () => {
     const pass = window.prompt("Digite a senha de administrador (4 dígitos):");
-    if (pass === "1010") {
+    if (pass === "2525") {
       setShowModal(true);
     } else if (pass !== null) {
       alert("Senha incorreta!");

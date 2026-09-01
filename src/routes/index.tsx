@@ -30,12 +30,22 @@ function Home() {
   const [clientShelves, setClientShelves] = useState<any[]>([]);
 
   useEffect(() => {
-    // Carrega do Firebase + Dados estáticos
-    const loadShelves = async () => {
-      const data = await shelves();
-      setClientShelves(data);
-    };
-    loadShelves();
+    // Carrega estático primeiro (instantâneo) para não atrasar a renderização da home
+    import("@/data/shows").then(({ CATEGORIES, SHOWS, shelves }) => {
+      setClientShelves(
+        CATEGORIES.filter((c) => c.id !== "todos").map((c) => ({
+          ...c,
+          shows: SHOWS.filter((s) => s.category === c.id),
+        }))
+      );
+
+      // Depois busca dinâmico do Firebase e atualiza
+      const loadShelves = async () => {
+        const data = await shelves();
+        setClientShelves(data);
+      };
+      loadShelves();
+    });
   }, []);
 
   return (
