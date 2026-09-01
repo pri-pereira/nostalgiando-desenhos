@@ -442,7 +442,7 @@ export const getDynamicShows = async (): Promise<Show[]> => {
 
 export const getAllShows = async (): Promise<Show[]> => {
   const dynamic = await getDynamicShows();
-  return [...dynamic, ...SHOWS];
+  return [...SHOWS, ...dynamic];
 };
 
 export const getShow = async (slug: string) => {

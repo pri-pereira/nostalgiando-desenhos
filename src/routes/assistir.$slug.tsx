@@ -180,15 +180,13 @@ function Watch() {
           <div className="lg:col-span-8">
             {/* CONTAINER DO PLAYER 16:9 */}
             <div className="relative aspect-video w-full overflow-hidden rounded-3xl border border-border/80 bg-black shadow-2xl">
-              {/* =============================================================
-                  COMO INSERIR SEU LINK DE VÍDEO REAL:
-                  1. Abra o arquivo src/data/shows.ts
-                  2. No episódio desejado, preencha o campo `videoUrl` com o link de embed:
-                     - YouTube: "https://www.youtube.com/embed/SEU_ID?autoplay=1"
-                     - Archive.org: "https://archive.org/embed/SEU_ID"
-                     - MP4 direto: "https://seu-servidor.com/video.mp4"
-                  ============================================================= */}
-              {episode.videoUrl ? (
+              {!episode ? (
+                <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground p-6 text-center">
+                  <Tv className="h-12 w-12 mb-4 opacity-50" />
+                  <p>Nenhum episódio encontrado para este título.</p>
+                  <p className="text-sm mt-2 opacity-70">Se for um desenho do acervo, aguarde o carregamento do Internet Archive.</p>
+                </div>
+              ) : episode.videoUrl ? (
                 // 1) RENDERIZAÇÃO QUANDO HOUVER URL DE VÍDEO / IFRAME CONFIGURADA
                 episode.videoUrl.endsWith(".mp4") ? (
                   <video

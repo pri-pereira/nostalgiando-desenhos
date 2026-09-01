@@ -61,41 +61,19 @@ function Home() {
                     </Link>
                 </div>
             </div>
-            {/* Player Nativo */}
-            <div className="md:w-[55%] bg-black relative aspect-video w-full border-l border-white/5">
-                <video controls preload="metadata" className="absolute top-0 left-0 w-full h-full object-cover bg-black">
-                  <source src="https://archive.org/download/caverna-do-dragao-ep-01/Caverna_do_Dragao_Ep01_Dublado.mp4" type="video/mp4" />
-                  Seu navegador não suporta a reprodução deste vídeo.
-                </video>
-            </div>
-        </div>
-
-        {/* Destaque 2: Pica-Pau */}
-        <div className="group rounded-3xl overflow-hidden shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)] border border-white/10 mb-16 flex flex-col md:flex-row-reverse relative bg-card transition-all duration-500 hover:border-accent/50 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.35),0_14px_40px_-12px_rgba(251,191,36,0.45)]">
-            {/* Background Glow */}
-            <div className="absolute inset-0 bg-gradient-to-l from-accent/10 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100 pointer-events-none" />
-
-            {/* Informações */}
-            <div className="p-8 md:p-12 md:w-[45%] flex flex-col justify-center relative z-10 bg-card/60 backdrop-blur-2xl border-l border-white/5">
-                <span className="text-accent font-bold uppercase tracking-[0.2em] text-xs mb-3 flex items-center gap-2"><Sparkles className="h-4 w-4" /> Comédia Clássica</span>
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground mb-5 tracking-tight text-shadow-premium">Pica-Pau</h2>
-                <p className="text-muted-foreground mb-8 text-sm md:text-base leading-relaxed">
-                    As maiores loucuras e confusões do pássaro mais maluco da televisão. Prepare-se para rir sem parar com os episódios que marcaram gerações nas manhãs da TV brasileira.
-                </p>
-                <div className="flex space-x-4">
-                    <Link to="/assistir/$slug" params={{ slug: "pica-pau" }} className="bg-accent text-accent-foreground px-6 py-3.5 rounded-full font-bold text-center shadow-[0_0_20px_rgba(251,191,36,0.3)] transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(251,191,36,0.5)] w-full sm:w-auto">
-                        <Play className="h-4 w-4 fill-current" /> Assistir Agora
-                    </Link>
-                </div>
-            </div>
-            {/* Player Nativo / Capa */}
-            <div className="md:w-[55%] bg-black relative aspect-video w-full border-r border-white/5">
+            {/* Capa Clicável para o Player */}
+            <Link to="/assistir/$slug" params={{ slug: "caverna-do-dragao" }} className="md:w-[55%] bg-black relative aspect-video w-full border-l border-white/5 block group-hover:opacity-90 transition-opacity cursor-pointer overflow-hidden">
                 <img 
-                  src={heroPicaPau} 
-                  alt="Pica-Pau" 
-                  className="absolute top-0 left-0 w-full h-full object-cover opacity-80" 
+                  src={heroImg} 
+                  alt="Caverna do Dragão" 
+                  className="absolute top-0 left-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" 
                 />
-            </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                   <div className="w-16 h-16 rounded-full bg-primary/80 text-white flex items-center justify-center backdrop-blur-md shadow-[0_0_30px_rgba(217,119,6,0.5)] group-hover:scale-110 transition-transform">
+                      <Play className="h-8 w-8 fill-current translate-x-1" />
+                   </div>
+                </div>
+            </Link>
         </div>
       </main>
 
