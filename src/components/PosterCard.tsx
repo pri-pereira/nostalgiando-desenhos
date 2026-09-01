@@ -37,7 +37,13 @@ export function PosterCard({ show }: { show: Show }) {
           {show.title}
         </h3>
         <p className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-          <span className="font-medium">{show.episodes.length} episódios</span>
+          <span className="font-medium">
+            {show.episodes.length > 0
+              ? `${show.episodes.length} episódios`
+              : show.archiveId
+                ? "Série Completa"
+                : "Em breve"}
+          </span>
           <span className="text-[10px] uppercase tracking-wider text-accent/80 font-bold">Clássico</span>
         </p>
       </div>
