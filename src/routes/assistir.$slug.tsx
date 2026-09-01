@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PosterCard } from "@/components/PosterCard";
-import { getShow, getStaticShow, type Episode, type Show } from "@/data/shows";
+import { getShow, getStaticShow, SHOWS, type Episode, type Show } from "@/data/shows";
 
 export const Route = createFileRoute("/assistir/$slug")({
   loader: ({ params }) => {
