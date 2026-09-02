@@ -42,11 +42,7 @@ export function PosterCard({ show }: { show: Show }) {
         </h3>
         <p className="mt-1 flex items-center justify-between text-xs sm:text-sm text-muted-foreground font-medium">
           <span className="truncate">
-            {show.episodes && show.episodes.length > 0
-              ? `${show.episodes.length} episódios`
-              : show.archiveId
-                ? "Série Completa"
-                : "Dublado"}
+            Série Completa
           </span>
           <span className="text-[11px] uppercase tracking-wider text-primary font-extrabold shrink-0 pl-1">
             HD
