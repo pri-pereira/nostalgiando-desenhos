@@ -27,6 +27,7 @@ import {
   markEpisodeWatched,
   getLastWatchedEpisodeIndex,
 } from "@/lib/watchHistory";
+import { trackShowView } from "@/lib/trendingShows";
 
 export const Route = createFileRoute("/assistir/$slug")({
   loader: ({ params }) => {
@@ -83,6 +84,7 @@ function Watch() {
   // Carrega episódios assistidos e restaura onde o usuário parou
   useEffect(() => {
     if (show) {
+      trackShowView(show.slug);
       const watched = getWatchedEpisodes(user?.uid, show.slug);
       setWatchedEpisodes(watched);
 

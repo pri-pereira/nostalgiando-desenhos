@@ -160,3 +160,12 @@
     oklch(0.14 0.01 270 / 0.2)
   );
 }
+
+@keyframes progress {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
