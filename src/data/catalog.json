@@ -1,0 +1,167 @@
+[
+  {
+    "slug": "caverna-do-dragao",
+    "title": "Caverna do Dragão",
+    "year": "1983",
+    "category": "aventura-fantasia",
+    "poster": "/assets/hero-caverna-dragao.jpg",
+    "archiveId": "caverna-do-dragao-completo-ptbr-paixaoflix",
+    "synopsis": "Seis jovens entram em uma montanha-russa mágica e acabam presos em um reino de aventuras, monstros e magia. Acompanhe a jornada épica de Hank, Eric, Diana, Presto, Sheila e Bobby em busca do caminho de casa.",
+    "episodes": []
+  },
+  {
+    "slug": "thundarr",
+    "title": "Thundarr, o Bárbaro",
+    "year": "1980",
+    "category": "aventura-fantasia",
+    "poster": "/assets/poster-aventura-barbaros.jpg",
+    "synopsis": "Em um mundo pós-apocalíptico dominado por feiticeiros cósmicos e mutantes, o bárbaro Thundarr brande a poderosa Espada Solar ao lado da feiticeira Princesa Ariel e do leal Ookla.",
+    "episodes": []
+  },
+  {
+    "slug": "he-man",
+    "title": "He-Man e os Mestres do Universo",
+    "year": "1983",
+    "category": "aventura-fantasia",
+    "poster": "/assets/poster-heroes.jpg",
+    "synopsis": "No planeta Eternia, o Príncipe Adam ergue sua espada mágica para se transformar em He-Man, o homem mais poderoso do universo, defendendo o Castelo de Grayskull das forças do Esqueleto.",
+    "episodes": []
+  },
+  {
+    "slug": "thundercats",
+    "title": "ThunderCats",
+    "year": "1985",
+    "category": "aventura-fantasia",
+    "poster": "/assets/poster-heroes.jpg",
+    "synopsis": "Após a destruição do planeta Thundera, os sobreviventes felinos liderados pelo jovem Lion-O chegam ao Terceiro Mundo armados com a lendária Espada Justiceira e o Olho de Thundera.",
+    "episodes": []
+  },
+  {
+    "slug": "pica-pau",
+    "title": "O Pica-Pau Clássico",
+    "year": "1940",
+    "category": "classicos-tv-aberta",
+    "poster": "/assets/poster-pato.jpg",
+    "synopsis": "As travessuras inesquecíveis do pássaro mais maluco da animação mundial, sempre infernizando a vida de Zeca Urubu, Leôncio e do Corvo Jubileu com sua icônica risada.",
+    "episodes": []
+  },
+  {
+    "slug": "tom-e-jerry",
+    "title": "Tom e Jerry Clássico",
+    "year": "1940",
+    "category": "classicos-tv-aberta",
+    "poster": "/assets/poster-classicos-tv.jpg",
+    "synopsis": "A mais famosa e divertida rivalidade de gato e rato da história dos desenhos animados em perseguições eletrizantes e hilárias da era de ouro de Hanna-Barbera.",
+    "episodes": []
+  },
+  {
+    "slug": "popeye",
+    "title": "Popeye, o Marinheiro",
+    "year": "1933",
+    "category": "classicos-tv-aberta",
+    "poster": "/assets/poster-classicos-tv.jpg",
+    "synopsis": "O destemido marinheiro que ganha força descomunal ao comer espinafre para salvar sua amada Olívia Palito das mãos do arrogante Brutus.",
+    "episodes": []
+  },
+  {
+    "slug": "droopy",
+    "title": "Droopy: O Cãozinho Calmo",
+    "year": "1943",
+    "category": "classicos-tv-aberta",
+    "poster": "/assets/poster-classicos-tv.jpg",
+    "synopsis": "O cãozinho de fala mansa e expressão impassível que sempre vence seus adversários nas situações mais impossíveis criadas pelo gênio Tex Avery.",
+    "episodes": []
+  },
+  {
+    "slug": "jiraiya",
+    "title": "Ninja Jiraiya: O Incrível Ninja",
+    "year": "1988",
+    "category": "tokusatsu",
+    "poster": "/assets/poster-tokusatsu-heroes.jpg",
+    "synopsis": "Touha Yamaji empunha a lendária Espada Olímpica e veste a armadura ninja Jiraiya para proteger a misteriosa cápsula espacial Pako da maligna Família dos Feiticeiros.",
+    "episodes": []
+  },
+  {
+    "slug": "jaspion",
+    "title": "O Fantástico Jaspion",
+    "year": "1985",
+    "category": "tokusatsu",
+    "poster": "/assets/poster-toku.jpg",
+    "synopsis": "O herói interestelar Jaspion viaja no monstro robô Daileon para derrotar Satan Goss, o gigante das trevas que enfurece monstros pelo cosmos.",
+    "episodes": []
+  },
+  {
+    "slug": "flashman",
+    "title": "Comando Estelar Flashman",
+    "year": "1986",
+    "category": "tokusatsu",
+    "poster": "/assets/poster-tokusatsu-heroes.jpg",
+    "synopsis": "Cinco jovens raptados da Terra e criados nos satélites do Planeta Flash retornam como guerreiros de Prisma para proteger seu planeta natal do Império Mess.",
+    "episodes": []
+  },
+  {
+    "slug": "cybercop",
+    "title": "Cybercop: Os Policiais do Futuro",
+    "year": "1989",
+    "category": "tokusatsu",
+    "poster": "/assets/poster-anos80.jpg",
+    "synopsis": "Na Tóquio futurista, a Unidade ZAC utiliza as avançadas Cyberarmaduras de Júpiter, Marte, Saturno e Mercúrio para deter o sindicato do crime Death Trap.",
+    "episodes": []
+  },
+  {
+    "slug": "super-globetrotters",
+    "title": "Os Super Globetrotters",
+    "year": "1979",
+    "category": "bau-hanna-barbera",
+    "poster": "/assets/poster-bau-hanna-barbera.jpg",
+    "synopsis": "O famoso time de basquete Harlem Globetrotters ganha superpoderes como Homem-Mola, Homem-Fluido, Homem-Bolas e Homem-Chapa para combater o crime.",
+    "episodes": []
+  },
+  {
+    "slug": "ze-buscape",
+    "title": "Zé Buscapé (Família Buscapé)",
+    "year": "1965",
+    "category": "bau-hanna-barbera",
+    "poster": "/assets/poster-bau-hanna-barbera.jpg",
+    "synopsis": "As hilárias confusões da família de ursos caipiras das montanhas: Zé Buscapé que só quer dormir, a enérgica Bié e os pequenos Florzinha e Chapeuzinho.",
+    "episodes": []
+  },
+  {
+    "slug": "scooby-doo",
+    "title": "Scooby-Doo, Cadê Você?",
+    "year": "1969",
+    "category": "bau-hanna-barbera",
+    "poster": "/assets/poster-anos90.jpg",
+    "synopsis": "Fred, Velma, Daphne, Salsicha e o cão mais covarde e comilão do mundo viajam na Máquina do Mistério desmascarando monstros e fantasmas por onde passam.",
+    "episodes": []
+  },
+  {
+    "slug": "corrida-maluca",
+    "title": "Corrida Maluca",
+    "year": "1968",
+    "category": "bau-hanna-barbera",
+    "poster": "/assets/poster-pedra.jpg",
+    "synopsis": "Onze carros excêntricos disputam o título de Volante Mais Maluco do Mundo, enquanto Dick Vigarista e seu cão Muttley tramam armadilhas sem fim.",
+    "episodes": []
+  },
+  {
+    "slug": "corrida-malucadublado",
+    "title": "Corrida Maluca (Dublado)",
+    "year": "1968",
+    "category": "catalogo",
+    "poster": "https://i.pinimg.com/736x/b2/14/fe/b214fe98d87fad3c8f94a535bd5cdd4f.jpg",
+    "synopsis": "Desenho clássico com Dick Vigarista e Muttley. Aproveite todos os episódios completos disponíveis no catálogo!",
+    "archiveId": "corrida-malucadublado",
+    "episodes": []
+  },
+  {
+    "slug": "caverna-do-dragao_202508",
+    "title": "Caverna do Dragão (Completo)",
+    "year": "1983",
+    "category": "catalogo",
+    "poster": "https://br.web.img3.acsta.net/r_1280_720/pictures/22/08/10/21/25/5951896.jpg",
+    "synopsis": "A clássica saga dos seis jovens no reino de magia do Mestre dos Magos e Vingador.",
+    "archiveId": "caverna-do-dragao_202508",
+    "episodes": []
+  }
+]

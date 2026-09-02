@@ -412,32 +412,25 @@ export const SHOWS: Show[] = [
 ];
 
 import { db, collection, getDocs, doc, setDoc, deleteDoc } from "@/lib/firebase";
+import catalogJson from "./catalog.json";
+import { persistCatalogToDiskServerFn } from "@/lib/serverSync";
 
 export const FEATURED = SHOWS[0]!;
 
-export const DEFAULT_CATALOG_SHOWS: Show[] = [
-  ...SHOWS,
-  {
-    slug: "corrida-malucadublado",
-    title: "Corrida Maluca (Dublado)",
-    year: "1968",
-    category: "catalogo",
-    poster: "https://i.pinimg.com/736x/b2/14/fe/b214fe98d87fad3c8f94a535bd5cdd4f.jpg",
-    synopsis: "Desenho clássico com Dick Vigarista e Muttley. Aproveite todos os episódios completos disponíveis no catálogo!",
-    archiveId: "corrida-malucadublado",
-    episodes: [],
-  },
-  {
-    slug: "caverna-do-dragao_202508",
-    title: "Caverna do Dragão (Completo)",
-    year: "1983",
-    category: "catalogo",
-    poster: "https://br.web.img3.acsta.net/r_1280_720/pictures/22/08/10/21/25/5951896.jpg",
-    synopsis: "A clássica saga dos seis jovens no reino de magia do Mestre dos Magos e Vingador.",
-    archiveId: "caverna-do-dragao_202508",
-    episodes: [],
-  },
-];
+// Inicializa a lista padrão priorizando o catalog.json persistido no repositório
+export const DEFAULT_CATALOG_SHOWS: Show[] = (catalogJson as any[]).map((item) => {
+  const matchShow = SHOWS.find((s) => s.slug === item.slug);
+  return {
+    slug: item.slug,
+    title: item.title,
+    year: item.year || "Clássico",
+    category: (item.category as CategoryId) || "catalogo",
+    poster: item.poster?.startsWith("/assets/") && matchShow ? matchShow.poster : item.poster,
+    synopsis: item.synopsis || "",
+    archiveId: item.archiveId || matchShow?.archiveId,
+    episodes: item.episodes && item.episodes.length > 0 ? item.episodes : (matchShow?.episodes || []),
+  };
+});
 
 const STORAGE_KEY = "nostalgiando_all_shows";
 const FIRESTORE_COLLECTION = "shows";
@@ -445,6 +438,8 @@ const FIRESTORE_COLLECTION = "shows";
 const notifyCatalogUpdated = (shows: Show[]) => {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("catalog_updated", { detail: shows }));
+    // Persiste também no arquivo físico do projeto quando em desenvolvimento
+    persistCatalogToDiskServerFn({ data: shows }).catch(() => {});
   }
 };
 
