@@ -332,14 +332,6 @@ function AdminDashboard() {
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-border/60 space-y-2">
-          <button
-            onClick={handleResetCatalog}
-            title="Restaura os desenhos clássicos padrão"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-muted-foreground hover:bg-secondary/60 hover:text-amber-400 transition-all border border-transparent"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Restaurar Catálogo Padrão
-          </button>
           <Link
             to="/"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-all border border-transparent"
@@ -385,12 +377,21 @@ function AdminDashboard() {
               </div>
             </div>
 
-            {/* Ação Rápida Superior */}
+            {/* Ações do Topo */}
             <div className="flex items-center gap-2">
+              <Link
+                to="/"
+                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl border border-white/10 bg-secondary/50 text-muted-foreground hover:text-primary hover:bg-secondary/80 hover:border-primary/40 text-sm font-bold transition-all active:scale-95"
+                title="Voltar para a Home"
+              >
+                <Eye className="h-4 w-4" />
+                <span>Ver Home</span>
+              </Link>
+
               {activeTab !== "adicionar" && (
                 <button
                   onClick={() => setActiveTab("adicionar")}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/90 transition-all active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/90 transition-all active:scale-95"
                 >
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Adicionar</span> Título
