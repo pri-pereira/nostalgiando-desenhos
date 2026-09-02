@@ -473,9 +473,7 @@ export const getAllShows = async (): Promise<Show[]> => {
     return DEFAULT_CATALOG_SHOWS;
   }
 
-  const localShows = getCachedShows();
-
-  // 1. Tenta sincronizar com o Firestore em nuvem sem bloquear
+  // 1. Tenta sincronizar com o Firestore em nuvem (Fonte Suprema da Verdade)
   try {
     if (db) {
       const fetchFromFirestore = async (): Promise<Show[] | null> => {
@@ -500,45 +498,80 @@ export const getAllShows = async (): Promise<Show[]> => {
         return null;
       };
 
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
       const cloudShows = await Promise.race([fetchFromFirestore(), timeoutPromise]);
 
+      // Se a nuvem tiver dados, a nuvem é a fonte de verdade absoluta!
       if (cloudShows && Array.isArray(cloudShows) && cloudShows.length > 0) {
-        // Merge inteligente: junta shows da nuvem com shows locais (preservando alterações locais)
-        const mergedMap = new Map<string, Show>();
-
-        // 1. Adiciona da nuvem
-        cloudShows.forEach((s) => mergedMap.set(s.slug, s));
-
-        // 2. Sobrepõe com locais que o usuário adicionou ou editou
-        localShows.forEach((s) => mergedMap.set(s.slug, s));
-
-        const mergedList = Array.from(mergedMap.values());
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedList));
-        notifyCatalogUpdated(mergedList);
-        return mergedList;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudShows));
+        notifyCatalogUpdated(cloudShows);
+        return cloudShows;
       } else if (cloudShows === null) {
-        // Se a nuvem estiver vazia na primeira vez, envia todo o catálogo local para a nuvem
-        localShows.forEach((s) => {
-          setDoc(doc(db, FIRESTORE_COLLECTION, s.slug), {
-            slug: s.slug,
-            title: s.title,
-            year: s.year,
-            category: s.category,
-            poster: s.poster,
-            synopsis: s.synopsis,
-            archiveId: s.archiveId || null,
-            episodes: s.episodes || [],
-            updatedAt: new Date().toISOString(),
-          }).catch(() => {});
-        });
+        // Se a nuvem estiver vazia na primeira vez, envia o catálogo local para a nuvem
+        const localShows = getCachedShows();
+        for (const s of localShows) {
+          try {
+            await setDoc(
+              doc(db, FIRESTORE_COLLECTION, s.slug),
+              {
+                slug: s.slug,
+                title: s.title || "",
+                year: s.year || "Clássico",
+                category: s.category || "catalogo",
+                poster: s.poster || "",
+                synopsis: s.synopsis || "",
+                archiveId: s.archiveId || null,
+                episodes: s.episodes || [],
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true }
+            );
+          } catch (seedErr) {
+            console.warn("Aviso ao semear show no Firestore:", s.slug, seedErr);
+          }
+        }
       }
     }
   } catch (firestoreErr) {
-    console.warn("Aviso Firestore (mantendo local):", firestoreErr);
+    console.warn("Aviso Firestore (usando cache local):", firestoreErr);
   }
 
-  return localShows;
+  return getCachedShows();
+};
+
+export const syncAllShowsToCloud = async (): Promise<{ success: boolean; count: number; error?: string }> => {
+  if (typeof window === "undefined" || !db) {
+    return { success: false, count: 0, error: "Firebase DB indisponível" };
+  }
+
+  const list = getCachedShows();
+  let successCount = 0;
+
+  try {
+    for (const show of list) {
+      const payload: Record<string, any> = {
+        slug: show.slug,
+        title: show.title || "",
+        year: show.year || "Clássico",
+        category: show.category || "catalogo",
+        poster: show.poster || "",
+        synopsis: show.synopsis || "",
+        archiveId: show.archiveId || null,
+        episodes: show.episodes || [],
+        updatedAt: new Date().toISOString(),
+      };
+
+      await setDoc(doc(db, FIRESTORE_COLLECTION, show.slug), payload, { merge: true });
+      successCount++;
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    notifyCatalogUpdated(list);
+    return { success: true, count: successCount };
+  } catch (err: any) {
+    console.error("Erro na sincronização em massa com Firestore:", err);
+    return { success: false, count: successCount, error: err?.message || "Erro de permissão ou rede no Firebase" };
+  }
 };
 
 export const saveShowToStorage = (show: Show): Show[] => {
@@ -561,23 +594,23 @@ export const saveShowToStorage = (show: Show): Show[] => {
     console.error("Erro ao salvar no LocalStorage:", e);
   }
 
-  // 2. Salva no Firestore (Nuvem)
+  // 2. Salva no Firestore (Nuvem) com payload 100% sanitizado (sem undefined)
   if (db) {
-    setDoc(
-      doc(db, FIRESTORE_COLLECTION, show.slug),
-      {
-        slug: show.slug,
-        title: show.title,
-        year: show.year,
-        category: show.category,
-        poster: show.poster,
-        synopsis: show.synopsis,
-        archiveId: show.archiveId || null,
-        episodes: show.episodes || [],
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    ).catch((err) => console.error("Erro ao salvar no Firestore:", err));
+    const payload: Record<string, any> = {
+      slug: show.slug,
+      title: show.title || "",
+      year: show.year || "Clássico",
+      category: show.category || "catalogo",
+      poster: show.poster || "",
+      synopsis: show.synopsis || "",
+      archiveId: show.archiveId || null,
+      episodes: show.episodes || [],
+      updatedAt: new Date().toISOString(),
+    };
+
+    setDoc(doc(db, FIRESTORE_COLLECTION, show.slug), payload, { merge: true }).catch((err) =>
+      console.error("Erro ao salvar no Firestore:", err)
+    );
   }
 
   return list;
@@ -600,12 +633,17 @@ export const updateShowInStorage = (slug: string, data: Partial<Show>): Show[] =
     }
   }
 
-  // 2. Atualiza no Firestore (Nuvem)
+  // 2. Atualiza no Firestore (Nuvem) com dados sanitizados
   if (db) {
-    const payload: Record<string, any> = { ...data, updatedAt: new Date().toISOString() };
-    if (data.archiveId === undefined) {
-      delete payload.archiveId;
-    }
+    const payload: Record<string, any> = { updatedAt: new Date().toISOString() };
+    if (data.title !== undefined) payload.title = data.title;
+    if (data.year !== undefined) payload.year = data.year;
+    if (data.category !== undefined) payload.category = data.category;
+    if (data.poster !== undefined) payload.poster = data.poster;
+    if (data.synopsis !== undefined) payload.synopsis = data.synopsis;
+    if (data.archiveId !== undefined) payload.archiveId = data.archiveId || null;
+    if (data.episodes !== undefined) payload.episodes = data.episodes;
+
     setDoc(doc(db, FIRESTORE_COLLECTION, slug), payload, { merge: true }).catch((err) =>
       console.error("Erro ao atualizar no Firestore:", err)
     );

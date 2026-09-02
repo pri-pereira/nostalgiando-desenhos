@@ -30,6 +30,8 @@ import {
   Menu,
   Download,
   Upload,
+  Cloud,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import {
@@ -43,6 +45,7 @@ import {
   deleteShowFromStorage,
   exportCatalog,
   importCatalog,
+  syncAllShowsToCloud,
 } from "@/data/shows";
 
 export const Route = createFileRoute("/admin")({
@@ -466,6 +469,25 @@ function DashboardView({
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncCloud = async () => {
+    setIsSyncing(true);
+    setBackupStatus("Sincronizando títulos com o banco de dados em nuvem (Firestore)...");
+    try {
+      const result = await syncAllShowsToCloud();
+      if (result.success) {
+        setBackupStatus(`✅ Sucesso! Todos os ${result.count} títulos foram gravados e protegidos na nuvem.`);
+      } else {
+        setBackupStatus(`⚠️ Atenção: ${result.error || "Erro ao conectar com Firestore"}`);
+      }
+    } catch (e: any) {
+      setBackupStatus(`⚠️ Erro: ${e?.message || "Falha na sincronização"}`);
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setBackupStatus(null), 7000);
+    }
+  };
 
   const handleExport = () => {
     try {
@@ -630,28 +652,38 @@ function DashboardView({
           {/* Backup & Proteção Contra Versionamentos */}
           <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-b from-amber-500/10 to-card p-5 sm:p-6 shadow-card">
             <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 mb-2">
-              <Save className="h-4 w-4 text-amber-400" />
-              Backup & Sincronização
+              <Cloud className="h-4 w-4 text-primary" />
+              Banco de Dados & Nuvem
             </h3>
             <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-              Exporte seus títulos personalizados em arquivo JSON para garantir que nenhuma edição seja perdida entre atualizações do site.
+              Sincronize com o Firestore para garantir que suas edições estejam disponíveis em todos os dispositivos e novos deploys.
             </p>
 
             <div className="space-y-2.5">
               <button
-                onClick={handleExport}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground text-sm font-bold border border-white/10 transition-all active:scale-95"
+                onClick={handleSyncCloud}
+                disabled={isSyncing}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:brightness-110 transition-all active:scale-95 disabled:opacity-50"
               >
-                <Download className="h-4 w-4 text-primary" />
-                Baixar Backup (.json)
+                <Cloud className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+                {isSyncing ? "Sincronizando..." : "Sincronizar com Nuvem Agora"}
               </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground text-sm font-bold border border-white/10 transition-all active:scale-95"
-              >
-                <Upload className="h-4 w-4 text-amber-400" />
-                Restaurar do Backup (.json)
-              </button>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  onClick={handleExport}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground text-xs font-bold border border-white/10 transition-all active:scale-95"
+                >
+                  <Download className="h-3.5 w-3.5 text-primary" />
+                  Backup (.json)
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground text-xs font-bold border border-white/10 transition-all active:scale-95"
+                >
+                  <Upload className="h-3.5 w-3.5 text-amber-400" />
+                  Restaurar (.json)
+                </button>
+              </div>
             </div>
           </div>
 
