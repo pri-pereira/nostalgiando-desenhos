@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PosterCard } from "./PosterCard";
 import type { Show } from "@/data/shows";
@@ -59,13 +60,14 @@ export function ShelfCarousel({ id, label, description, shows }: ShelfCarouselPr
         </div>
 
         {/* Botão Ver Tudo */}
-        <a
-          href={`#${id}`}
+        <Link
+          to="/categoria/$id"
+          params={{ id }}
           className="group inline-flex shrink-0 items-center gap-1 text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-all pb-0.5"
         >
           <span>Ver Tudo</span>
           <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-        </a>
+        </Link>
       </div>
 
       {/* Carrossel de Vídeos com scroll touch suave */}

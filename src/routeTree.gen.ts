@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AssistirSlugRouteImport } from './routes/assistir.$slug'
+import { Route as CategoriaIdRouteImport } from './routes/categoria.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const AssistirSlugRoute = AssistirSlugRouteImport.update({
   path: '/assistir/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CategoriaIdRoute = CategoriaIdRouteImport.update({
+  id: '/categoria/$id',
+  path: '/categoria/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/assistir/$slug': typeof AssistirSlugRoute
+  '/categoria/$id': typeof CategoriaIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/assistir/$slug': typeof AssistirSlugRoute
+  '/categoria/$id': typeof CategoriaIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,20 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/assistir/$slug': typeof AssistirSlugRoute
+  '/categoria/$id': typeof CategoriaIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/login' | '/assistir/$slug'
+  fullPaths: '/' | '/admin' | '/login' | '/assistir/$slug' | '/categoria/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/login' | '/assistir/$slug'
-  id: '__root__' | '/' | '/admin' | '/login' | '/assistir/$slug'
+  to: '/' | '/admin' | '/login' | '/assistir/$slug' | '/categoria/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/assistir/$slug'
+    | '/categoria/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +82,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   LoginRoute: typeof LoginRoute
   AssistirSlugRoute: typeof AssistirSlugRoute
+  CategoriaIdRoute: typeof CategoriaIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +115,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssistirSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/categoria/$id': {
+      id: '/categoria/$id'
+      path: '/categoria/$id'
+      fullPath: '/categoria/$id'
+      preLoaderRoute: typeof CategoriaIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +130,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   LoginRoute: LoginRoute,
   AssistirSlugRoute: AssistirSlugRoute,
+  CategoriaIdRoute: CategoriaIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
