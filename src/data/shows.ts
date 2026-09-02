@@ -38,9 +38,9 @@ export type Show = {
 export const CATEGORIES = [
   { id: "todos", label: "Todos", shortLabel: "Todos", description: "Todos os clássicos reunidos" },
   {
-    id: "acervo",
-    label: "Acervo Comunitário",
-    shortLabel: "Acervo",
+    id: "catalogo",
+    label: "Catálogo",
+    shortLabel: "Catálogo",
     description: "Desenhos adicionados através do painel de administrador.",
   },
   {
@@ -411,59 +411,234 @@ export const SHOWS: Show[] = [
   },
 ];
 
+import { db, collection, getDocs, doc, setDoc, deleteDoc } from "@/lib/firebase";
+
 export const FEATURED = SHOWS[0]!;
 
-export const getDynamicShows = async (): Promise<Show[]> => {
+export const DEFAULT_CATALOG_SHOWS: Show[] = [
+  ...SHOWS,
+  {
+    slug: "corrida-malucadublado",
+    title: "Corrida Maluca (Dublado)",
+    year: "1968",
+    category: "catalogo",
+    poster: "https://i.pinimg.com/736x/b2/14/fe/b214fe98d87fad3c8f94a535bd5cdd4f.jpg",
+    synopsis: "Desenho clássico com Dick Vigarista e Muttley. Aproveite todos os episódios completos disponíveis no catálogo!",
+    archiveId: "corrida-malucadublado",
+    episodes: [],
+  },
+  {
+    slug: "caverna-do-dragao_202508",
+    title: "Caverna do Dragão (Completo)",
+    year: "1983",
+    category: "catalogo",
+    poster: "https://br.web.img3.acsta.net/r_1280_720/pictures/22/08/10/21/25/5951896.jpg",
+    synopsis: "A clássica saga dos seis jovens no reino de magia do Mestre dos Magos e Vingador.",
+    archiveId: "caverna-do-dragao_202508",
+    episodes: [],
+  },
+];
+
+const STORAGE_KEY = "nostalgiando_all_shows";
+const FIRESTORE_COLLECTION = "shows";
+
+export const getCachedShows = (): Show[] => {
+  if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
   try {
-    const defaultShows: Show[] = [
-      {
-        slug: "corrida-malucadublado",
-        title: "Corrida Maluca",
-        year: "Comunidade",
-        category: "acervo",
-        poster: "https://i.pinimg.com/736x/b2/14/fe/b214fe98d87fad3c8f94a535bd5cdd4f.jpg",
-        synopsis: "Desenho adicionado através do painel de administrador. Aproveite todos os episódios completos disponíveis no acervo!",
-        archiveId: "corrida-malucadublado",
-        episodes: [],
-      },
-      {
-        slug: "caverna-do-dragao_202508",
-        title: "Caverna do Dragão",
-        year: "Comunidade",
-        category: "acervo",
-        poster: "https://br.web.img3.acsta.net/r_1280_720/pictures/22/08/10/21/25/5951896.jpg",
-        synopsis: "Desenho adicionado através do painel de administrador. Aproveite todos os episódios completos disponíveis no acervo!",
-        archiveId: "caverna-do-dragao_202508",
-        episodes: [],
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed: Show[] = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
       }
-    ];
-
-    if (typeof window === "undefined") return defaultShows;
-    const savedData = localStorage.getItem("nostalgiando_shows");
-    if (!savedData) return defaultShows;
-    
-    const parsed = JSON.parse(savedData);
-    const localShows: Show[] = parsed.map((s: any) => ({
-      slug: s.id,
-      title: s.title,
-      year: "Comunidade",
-      category: "acervo",
-      poster: s.img || "https://via.placeholder.com/800x1200/111827/ffffff?text=Sem+Imagem",
-      synopsis: "Desenho adicionado através do painel de administrador. Aproveite todos os episódios completos disponíveis no acervo!",
-      archiveId: s.id,
-      episodes: [],
-    }));
-
-    return [...defaultShows, ...localShows];
+    }
   } catch (e) {
-    console.error("Erro ao buscar do LocalStorage", e);
-    return [];
+    console.error("Erro ao ler cache:", e);
   }
+  return DEFAULT_CATALOG_SHOWS;
 };
 
 export const getAllShows = async (): Promise<Show[]> => {
-  const dynamic = await getDynamicShows();
-  return [...SHOWS, ...dynamic];
+  if (typeof window === "undefined") {
+    return DEFAULT_CATALOG_SHOWS;
+  }
+
+  // 1. Tenta carregar do Firestore com timeout de 1.5s para nunca travar a UI
+  try {
+    if (db) {
+      const fetchFromFirestore = async (): Promise<Show[] | null> => {
+        const showsCollection = collection(db, FIRESTORE_COLLECTION);
+        const snapshot = await getDocs(showsCollection);
+
+        if (!snapshot.empty) {
+          return snapshot.docs.map((d) => {
+            const data = d.data();
+            return {
+              slug: data.slug || d.id,
+              title: data.title || "",
+              year: data.year || "Clássico",
+              category: (data.category as CategoryId) || "catalogo",
+              poster: data.poster || "",
+              synopsis: data.synopsis || "",
+              archiveId: data.archiveId || undefined,
+              episodes: data.episodes || [],
+            };
+          });
+        } else {
+          // Se a coleção estiver vazia, semear em background
+          DEFAULT_CATALOG_SHOWS.forEach((s) => {
+            setDoc(doc(db, FIRESTORE_COLLECTION, s.slug), {
+              slug: s.slug,
+              title: s.title,
+              year: s.year,
+              category: s.category,
+              poster: s.poster,
+              synopsis: s.synopsis,
+              archiveId: s.archiveId || null,
+              episodes: s.episodes || [],
+              updatedAt: new Date().toISOString(),
+            }).catch(() => {});
+          });
+          return DEFAULT_CATALOG_SHOWS;
+        }
+      };
+
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+      const cloudShows = await Promise.race([fetchFromFirestore(), timeoutPromise]);
+
+      if (cloudShows && Array.isArray(cloudShows) && cloudShows.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudShows));
+        return cloudShows;
+      }
+    }
+  } catch (firestoreErr) {
+    console.warn("Aviso Firestore (usando cache local):", firestoreErr);
+  }
+
+  // 2. Fallback de cache do LocalStorage
+  return getCachedShows();
+};
+
+export const saveShowToStorage = (show: Show): Show[] => {
+  if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
+  
+  // 1. Atualiza cache local imediato
+  let list: Show[] = [...DEFAULT_CATALOG_SHOWS];
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    list = saved ? JSON.parse(saved) : [...DEFAULT_CATALOG_SHOWS];
+    const index = list.findIndex((s) => s.slug === show.slug);
+    if (index >= 0) {
+      list[index] = { ...list[index], ...show };
+    } else {
+      list.push(show);
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch (e) {
+    console.error("Erro ao salvar localmente:", e);
+  }
+
+  // 2. Salva no Firestore (Nuvem) de forma assíncrona
+  if (db) {
+    setDoc(
+      doc(db, FIRESTORE_COLLECTION, show.slug),
+      {
+        slug: show.slug,
+        title: show.title,
+        year: show.year,
+        category: show.category,
+        poster: show.poster,
+        synopsis: show.synopsis,
+        archiveId: show.archiveId || null,
+        episodes: show.episodes || [],
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    ).catch((err) => console.error("Erro ao salvar show no Firestore:", err));
+  }
+
+  return list;
+};
+
+export const updateShowInStorage = (slug: string, data: Partial<Show>): Show[] => {
+  if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
+
+  // 1. Atualiza cache local imediato
+  let list: Show[] = [...DEFAULT_CATALOG_SHOWS];
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    list = saved ? JSON.parse(saved) : [...DEFAULT_CATALOG_SHOWS];
+    const index = list.findIndex((s) => s.slug === slug);
+    if (index >= 0) {
+      list[index] = { ...list[index], ...data };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+  } catch (e) {
+    console.error("Erro ao atualizar localmente:", e);
+  }
+
+  // 2. Atualiza no Firestore (Nuvem)
+  if (db) {
+    const payload: Record<string, any> = { ...data, updatedAt: new Date().toISOString() };
+    if (data.archiveId === undefined) {
+      delete payload.archiveId;
+    }
+    setDoc(doc(db, FIRESTORE_COLLECTION, slug), payload, { merge: true }).catch((err) =>
+      console.error("Erro ao atualizar no Firestore:", err)
+    );
+  }
+
+  return list;
+};
+
+export const deleteShowFromStorage = (slug: string): Show[] => {
+  if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
+
+  // 1. Remove do cache local imediato
+  let updated: Show[] = [];
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    const list: Show[] = saved ? JSON.parse(saved) : [...DEFAULT_CATALOG_SHOWS];
+    updated = list.filter((s) => s.slug !== slug);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.error("Erro ao remover localmente:", e);
+  }
+
+  // 2. Remove do Firestore (Nuvem)
+  if (db) {
+    deleteDoc(doc(db, FIRESTORE_COLLECTION, slug)).catch((err) =>
+      console.error("Erro ao deletar do Firestore:", err)
+    );
+  }
+
+  return updated;
+};
+
+export const resetCatalogToDefault = (): Show[] => {
+  if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
+
+  // Reseta localmente
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CATALOG_SHOWS));
+
+  // Reseta no Firestore
+  if (db) {
+    DEFAULT_CATALOG_SHOWS.forEach((s) => {
+      setDoc(doc(db, FIRESTORE_COLLECTION, s.slug), {
+        slug: s.slug,
+        title: s.title,
+        year: s.year,
+        category: s.category,
+        poster: s.poster,
+        synopsis: s.synopsis,
+        archiveId: s.archiveId || null,
+        episodes: s.episodes || [],
+        updatedAt: new Date().toISOString(),
+      }).catch((err) => console.error("Erro ao resetar no Firestore:", err));
+    });
+  }
+
+  return DEFAULT_CATALOG_SHOWS;
 };
 
 export const getShow = async (slug: string) => {
@@ -480,4 +655,8 @@ export const shelves = async () => {
 };
 
 // Mantido para compatibilidade síncrona temporária onde precisar
-export const getStaticShow = (slug: string) => SHOWS.find((s) => s.slug === slug);
+export const getStaticShow = (slug: string) => {
+  return DEFAULT_CATALOG_SHOWS.find((s) => s.slug === slug) || SHOWS.find((s) => s.slug === slug);
+};
+
+

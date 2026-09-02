@@ -1,162 +1,141 @@
-import { Link } from "@tanstack/react-router";
-import { Search, Tv, Settings } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Search, Tv, Settings, LogIn, User, LogOut, ChevronDown } from "lucide-react";
 import { CATEGORIES } from "@/data/shows";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useAuth } from "@/lib/authContext";
 
 export function SiteHeader() {
-  const [showModal, setShowModal] = useState(false);
-  const [admTitle, setAdmTitle] = useState("");
-  const [admId, setAdmId] = useState("");
-  const [admImg, setAdmImg] = useState("");
+  const { user, isAdmin, logout, logoutAdmin } = useAuth();
+  const navigate = useNavigate();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
-  const openAdm = () => {
-    const pass = window.prompt("Digite a senha de administrador (4 dígitos):");
-    if (pass === "2525") {
-      setShowModal(true);
-    } else if (pass !== null) {
-      alert("Senha incorreta!");
-    }
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleAdminClick = () => {
+    navigate({ to: "/admin" });
   };
 
-  const saveShow = async () => {
-    if (!admTitle || !admId) {
-      alert("Preencha pelo menos o Título e o ID do Archive!");
-      return;
-    }
-    
-    try {
-      const existing = localStorage.getItem("nostalgiando_shows");
-      const shows = existing ? JSON.parse(existing) : [];
-      shows.push({
-        title: admTitle,
-        id: admId,
-        img: admImg,
-      });
-      localStorage.setItem("nostalgiando_shows", JSON.stringify(shows));
-      
-      setShowModal(false);
-      setAdmTitle("");
-      setAdmId("");
-      setAdmImg("");
-      window.location.reload();
-    } catch (e) {
-      console.error("Erro ao salvar: ", e);
-      alert("Erro ao salvar localmente!");
-    }
+  const handleLogout = async () => {
+    await logout();
+    logoutAdmin();
+    setUserMenuOpen(false);
   };
 
   return (
-    <>
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-background/50 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/40">
-        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:justify-between">
-          <Link to="/" className="flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-80">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-amber-600 text-primary-foreground shadow-[0_0_15px_rgba(217,119,6,0.5)]">
-              <Tv className="h-5 w-5" />
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-background/80 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70">
+      <div className="mx-auto max-w-7xl px-3.5 py-2.5 sm:px-6 sm:py-3">
+        <div className="flex items-center justify-between gap-3">
+          {/* Logo */}
+          <Link
+            to="/"
+            className="flex min-w-0 items-center gap-2 sm:gap-2.5 transition-opacity hover:opacity-85 active:scale-98"
+          >
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-amber-600 text-primary-foreground shadow-[0_0_20px_rgba(217,119,6,0.4)]">
+              <Tv className="h-6 w-6" />
             </span>
-            <span className="min-w-0 font-display text-lg tracking-tight">
-              <span className="block truncate leading-tight text-primary font-bold text-shadow-premium">Nostalgiando</span>
-              <span className="block truncate text-[10px] font-bold leading-tight tracking-[0.3em] text-accent/90">
+            <span className="min-w-0 font-display text-lg sm:text-xl tracking-tight leading-tight">
+              <span className="block truncate text-primary font-bold text-shadow-premium">
+                Nostalgiando
+              </span>
+              <span className="block truncate text-[11px] font-bold tracking-[0.25em] text-accent/90">
                 DESENHOS
               </span>
             </span>
           </Link>
 
-          <label className="relative hidden w-full max-w-md items-center sm:flex group">
-            <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+          {/* Busca no Desktop */}
+          <label className="relative hidden w-full max-w-md items-center md:flex group">
+            <Search className="pointer-events-none absolute left-4 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
             <input
               type="search"
               placeholder="Buscar desenhos, heróis, episódios..."
-              className="h-10 w-full rounded-full border border-white/10 bg-secondary/30 backdrop-blur-md pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+              className="h-11 w-full rounded-full border border-white/10 bg-secondary/40 backdrop-blur-md pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
             />
           </label>
 
-          <button
-            onClick={openAdm}
-            aria-label="Admin"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-secondary/30 text-muted-foreground hover:text-primary hover:bg-secondary/50 transition-all sm:hidden"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-          
-          <button
-            onClick={openAdm}
-            className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-secondary/30 text-muted-foreground hover:text-primary hover:bg-secondary/50 transition-all text-sm font-semibold"
-          >
-            <Settings className="h-4 w-4" />
-            ADM
-          </button>
+          {/* Ações do Header: ADM + Login/Usuário */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Botão Admin */}
+            <button
+              onClick={handleAdminClick}
+              className="flex items-center gap-2 h-11 px-3.5 sm:px-4 rounded-full border border-white/10 bg-secondary/40 text-muted-foreground hover:text-primary hover:bg-secondary/60 hover:border-primary/30 transition-all text-sm font-bold active:scale-95"
+              title="Painel de Administração"
+            >
+              <Settings className="h-4 w-4" />
+              <span>ADM</span>
+            </button>
+
+            {/* Login / Usuário */}
+            {user ? (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 h-11 px-3.5 rounded-full border border-white/10 bg-secondary/40 text-foreground hover:bg-secondary/60 transition-all active:scale-95"
+                >
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-primary to-amber-600 text-primary-foreground text-xs font-bold shadow-sm">
+                    {user.email?.charAt(0).toUpperCase() || "U"}
+                  </span>
+                  <span className="hidden sm:block text-sm font-semibold max-w-[120px] truncate">
+                    {user.email?.split("@")[0]}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 text-muted-foreground transition-transform ${
+                      userMenuOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-white/10 bg-card/95 backdrop-blur-2xl shadow-2xl p-2 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                    <div className="px-3.5 py-2.5 border-b border-border/60 mb-1">
+                      <p className="text-sm font-bold text-foreground truncate">{user.email}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Conta Conectada</p>
+                    </div>
+
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm text-destructive hover:bg-destructive/10 transition-all font-semibold"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sair da Conta
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="flex items-center gap-2 h-11 px-4 sm:px-5 rounded-full bg-gradient-to-r from-primary to-amber-600 text-primary-foreground text-sm font-bold shadow-[0_0_20px_rgba(217,119,6,0.35)] hover:shadow-[0_0_30px_rgba(217,119,6,0.5)] transition-all hover:scale-[1.02] active:scale-[0.97]"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>Entrar</span>
+              </Link>
+            )}
+          </div>
         </div>
 
-        <nav className="mt-4 -mx-1 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Navegação de Categorias / Prateleiras com toque fluido */}
+        <nav className="mt-3 -mx-1 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {CATEGORIES.map((c) => (
             <a
               key={c.id}
               href={c.id === "todos" ? "/" : `/#${c.id}`}
-              className="shrink-0 rounded-full border border-white/5 bg-secondary/20 px-5 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground transition-all hover:bg-secondary/40 hover:text-foreground active:scale-95"
+              className="shrink-0 rounded-full border border-white/5 bg-secondary/30 px-4 sm:px-5 py-2 text-xs sm:text-sm font-bold tracking-wide text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground active:scale-95"
             >
               {c.label}
             </a>
           ))}
         </nav>
       </div>
-
     </header>
-      
-      {/* Modal ADM */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-800 p-6 rounded-xl w-full max-w-md shadow-2xl relative">
-            <button 
-              onClick={() => setShowModal(false)} 
-              className="absolute top-4 right-4 text-gray-400 hover:text-white font-bold"
-            >
-              ✕
-            </button>
-            <h3 className="text-xl font-bold mb-4 text-primary">Adicionar Novo Desenho</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Título do Desenho</label>
-                <input 
-                  value={admTitle}
-                  onChange={(e) => setAdmTitle(e.target.value)}
-                  type="text" 
-                  className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none focus:border-primary" 
-                  placeholder="Ex: Batman Animated Series" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">ID do Internet Archive</label>
-                <input 
-                  value={admId}
-                  onChange={(e) => setAdmId(e.target.value)}
-                  type="text" 
-                  className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none focus:border-primary" 
-                  placeholder="Ex: batman-animated-1992" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">URL da Imagem (Pôster)</label>
-                <input 
-                  value={admImg}
-                  onChange={(e) => setAdmImg(e.target.value)}
-                  type="text" 
-                  className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none focus:border-primary" 
-                  placeholder="https://link-da-imagem.jpg" 
-                />
-              </div>
-              
-              <button 
-                onClick={saveShow} 
-                className="w-full bg-primary hover:bg-primary/80 text-primary-foreground font-bold py-2 rounded mt-4 transition"
-              >
-                Salvar e Adicionar à Vitrine
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
   );
 }
