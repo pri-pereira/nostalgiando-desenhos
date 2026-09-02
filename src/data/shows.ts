@@ -442,6 +442,12 @@ export const DEFAULT_CATALOG_SHOWS: Show[] = [
 const STORAGE_KEY = "nostalgiando_all_shows";
 const FIRESTORE_COLLECTION = "shows";
 
+const notifyCatalogUpdated = (shows: Show[]) => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("catalog_updated", { detail: shows }));
+  }
+};
+
 export const getCachedShows = (): Show[] => {
   if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
   try {
@@ -455,6 +461,10 @@ export const getCachedShows = (): Show[] => {
   } catch (e) {
     console.error("Erro ao ler cache:", e);
   }
+  // Se ainda não tiver nada no storage, inicializa com DEFAULT_CATALOG_SHOWS
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CATALOG_SHOWS));
+  } catch {}
   return DEFAULT_CATALOG_SHOWS;
 };
 
@@ -463,7 +473,9 @@ export const getAllShows = async (): Promise<Show[]> => {
     return DEFAULT_CATALOG_SHOWS;
   }
 
-  // 1. Tenta carregar do Firestore com timeout de 1.5s para nunca travar a UI
+  const localShows = getCachedShows();
+
+  // 1. Tenta sincronizar com o Firestore em nuvem sem bloquear
   try {
     if (db) {
       const fetchFromFirestore = async (): Promise<Show[] | null> => {
@@ -484,61 +496,72 @@ export const getAllShows = async (): Promise<Show[]> => {
               episodes: data.episodes || [],
             };
           });
-        } else {
-          // Se a coleção estiver vazia, semear em background
-          DEFAULT_CATALOG_SHOWS.forEach((s) => {
-            setDoc(doc(db, FIRESTORE_COLLECTION, s.slug), {
-              slug: s.slug,
-              title: s.title,
-              year: s.year,
-              category: s.category,
-              poster: s.poster,
-              synopsis: s.synopsis,
-              archiveId: s.archiveId || null,
-              episodes: s.episodes || [],
-              updatedAt: new Date().toISOString(),
-            }).catch(() => {});
-          });
-          return DEFAULT_CATALOG_SHOWS;
         }
+        return null;
       };
 
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
       const cloudShows = await Promise.race([fetchFromFirestore(), timeoutPromise]);
 
       if (cloudShows && Array.isArray(cloudShows) && cloudShows.length > 0) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudShows));
-        return cloudShows;
+        // Merge inteligente: junta shows da nuvem com shows locais (preservando alterações locais)
+        const mergedMap = new Map<string, Show>();
+
+        // 1. Adiciona da nuvem
+        cloudShows.forEach((s) => mergedMap.set(s.slug, s));
+
+        // 2. Sobrepõe com locais que o usuário adicionou ou editou
+        localShows.forEach((s) => mergedMap.set(s.slug, s));
+
+        const mergedList = Array.from(mergedMap.values());
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedList));
+        notifyCatalogUpdated(mergedList);
+        return mergedList;
+      } else if (cloudShows === null) {
+        // Se a nuvem estiver vazia na primeira vez, envia todo o catálogo local para a nuvem
+        localShows.forEach((s) => {
+          setDoc(doc(db, FIRESTORE_COLLECTION, s.slug), {
+            slug: s.slug,
+            title: s.title,
+            year: s.year,
+            category: s.category,
+            poster: s.poster,
+            synopsis: s.synopsis,
+            archiveId: s.archiveId || null,
+            episodes: s.episodes || [],
+            updatedAt: new Date().toISOString(),
+          }).catch(() => {});
+        });
       }
     }
   } catch (firestoreErr) {
-    console.warn("Aviso Firestore (usando cache local):", firestoreErr);
+    console.warn("Aviso Firestore (mantendo local):", firestoreErr);
   }
 
-  // 2. Fallback de cache do LocalStorage
-  return getCachedShows();
+  return localShows;
 };
 
 export const saveShowToStorage = (show: Show): Show[] => {
   if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
   
-  // 1. Atualiza cache local imediato
-  let list: Show[] = [...DEFAULT_CATALOG_SHOWS];
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    list = saved ? JSON.parse(saved) : [...DEFAULT_CATALOG_SHOWS];
-    const index = list.findIndex((s) => s.slug === show.slug);
-    if (index >= 0) {
-      list[index] = { ...list[index], ...show };
-    } else {
-      list.push(show);
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-  } catch (e) {
-    console.error("Erro ao salvar localmente:", e);
+  // 1. Atualiza localmente imediatamente
+  const currentList = getCachedShows();
+  const list = [...currentList];
+  const index = list.findIndex((s) => s.slug === show.slug);
+  if (index >= 0) {
+    list[index] = { ...list[index], ...show };
+  } else {
+    list.unshift(show); // Adiciona no início da lista
   }
 
-  // 2. Salva no Firestore (Nuvem) de forma assíncrona
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    notifyCatalogUpdated(list);
+  } catch (e) {
+    console.error("Erro ao salvar no LocalStorage:", e);
+  }
+
+  // 2. Salva no Firestore (Nuvem)
   if (db) {
     setDoc(
       doc(db, FIRESTORE_COLLECTION, show.slug),
@@ -554,7 +577,7 @@ export const saveShowToStorage = (show: Show): Show[] => {
         updatedAt: new Date().toISOString(),
       },
       { merge: true }
-    ).catch((err) => console.error("Erro ao salvar show no Firestore:", err));
+    ).catch((err) => console.error("Erro ao salvar no Firestore:", err));
   }
 
   return list;
@@ -563,18 +586,18 @@ export const saveShowToStorage = (show: Show): Show[] => {
 export const updateShowInStorage = (slug: string, data: Partial<Show>): Show[] => {
   if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
 
-  // 1. Atualiza cache local imediato
-  let list: Show[] = [...DEFAULT_CATALOG_SHOWS];
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    list = saved ? JSON.parse(saved) : [...DEFAULT_CATALOG_SHOWS];
-    const index = list.findIndex((s) => s.slug === slug);
-    if (index >= 0) {
-      list[index] = { ...list[index], ...data };
+  // 1. Atualiza localmente imediatamente
+  const currentList = getCachedShows();
+  const list = [...currentList];
+  const index = list.findIndex((s) => s.slug === slug);
+  if (index >= 0) {
+    list[index] = { ...list[index], ...data };
+    try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      notifyCatalogUpdated(list);
+    } catch (e) {
+      console.error("Erro ao atualizar no LocalStorage:", e);
     }
-  } catch (e) {
-    console.error("Erro ao atualizar localmente:", e);
   }
 
   // 2. Atualiza no Firestore (Nuvem)
@@ -594,21 +617,21 @@ export const updateShowInStorage = (slug: string, data: Partial<Show>): Show[] =
 export const deleteShowFromStorage = (slug: string): Show[] => {
   if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
 
-  // 1. Remove do cache local imediato
-  let updated: Show[] = [];
+  // 1. Remove localmente imediatamente
+  const currentList = getCachedShows();
+  const updated = currentList.filter((s) => s.slug !== slug);
+
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    const list: Show[] = saved ? JSON.parse(saved) : [...DEFAULT_CATALOG_SHOWS];
-    updated = list.filter((s) => s.slug !== slug);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    notifyCatalogUpdated(updated);
   } catch (e) {
-    console.error("Erro ao remover localmente:", e);
+    console.error("Erro ao remover no LocalStorage:", e);
   }
 
   // 2. Remove do Firestore (Nuvem)
   if (db) {
     deleteDoc(doc(db, FIRESTORE_COLLECTION, slug)).catch((err) =>
-      console.error("Erro ao deletar do Firestore:", err)
+      console.error("Erro ao deletar no Firestore:", err)
     );
   }
 
@@ -620,6 +643,7 @@ export const resetCatalogToDefault = (): Show[] => {
 
   // Reseta localmente
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CATALOG_SHOWS));
+  notifyCatalogUpdated(DEFAULT_CATALOG_SHOWS);
 
   // Reseta no Firestore
   if (db) {

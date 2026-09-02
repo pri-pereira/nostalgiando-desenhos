@@ -36,6 +36,15 @@ function Home() {
   });
 
   useEffect(() => {
+    const updateShelvesFromList = (showsList: any[]) => {
+      setClientShelves(
+        CATEGORIES.filter((c) => c.id !== "todos").map((c) => ({
+          ...c,
+          shows: c.id === "catalogo" ? showsList : showsList.filter((s) => s.category === c.id),
+        }))
+      );
+    };
+
     const loadShelves = async () => {
       try {
         const data = await shelves();
@@ -47,6 +56,21 @@ function Home() {
       }
     };
     loadShelves();
+
+    const handleCatalogUpdate = (e: any) => {
+      if (e?.detail && Array.isArray(e.detail)) {
+        updateShelvesFromList(e.detail);
+      } else {
+        updateShelvesFromList(getCachedShows());
+      }
+    };
+
+    window.addEventListener("catalog_updated", handleCatalogUpdate);
+    window.addEventListener("storage", handleCatalogUpdate);
+    return () => {
+      window.removeEventListener("catalog_updated", handleCatalogUpdate);
+      window.removeEventListener("storage", handleCatalogUpdate);
+    };
   }, []);
 
   return (

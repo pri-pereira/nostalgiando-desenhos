@@ -178,6 +178,21 @@ function AdminDashboard() {
 
   useEffect(() => {
     loadAllShows();
+
+    const handleCatalogUpdate = (e: any) => {
+      if (e?.detail && Array.isArray(e.detail)) {
+        setShows(e.detail);
+      } else {
+        setShows(getCachedShows());
+      }
+    };
+
+    window.addEventListener("catalog_updated", handleCatalogUpdate);
+    window.addEventListener("storage", handleCatalogUpdate);
+    return () => {
+      window.removeEventListener("catalog_updated", handleCatalogUpdate);
+      window.removeEventListener("storage", handleCatalogUpdate);
+    };
   }, []);
 
   const loadAllShows = async () => {
