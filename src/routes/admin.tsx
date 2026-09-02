@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   LayoutDashboard,
   Plus,
@@ -25,10 +25,11 @@ import {
   Settings,
   BarChart3,
   Grid3X3,
-  RotateCcw,
   Layers,
   Filter,
   Menu,
+  Download,
+  Upload,
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import {
@@ -40,7 +41,8 @@ import {
   saveShowToStorage,
   updateShowInStorage,
   deleteShowFromStorage,
-  resetCatalogToDefault,
+  exportCatalog,
+  importCatalog,
 } from "@/data/shows";
 
 export const Route = createFileRoute("/admin")({
@@ -411,7 +413,11 @@ function AdminDashboard() {
           ) : (
             <>
               {activeTab === "dashboard" && (
-                <DashboardView shows={shows} setActiveTab={setActiveTab} />
+                <DashboardView
+                  shows={shows}
+                  setShows={setShows}
+                  setActiveTab={setActiveTab}
+                />
               )}
               {activeTab === "titulos" && (
                 <TitulosView
@@ -451,11 +457,69 @@ function AdminDashboard() {
 // ============================================================================
 function DashboardView({
   shows,
+  setShows,
   setActiveTab,
 }: {
   shows: Show[];
+  setShows: (shows: Show[]) => void;
   setActiveTab: (tab: AdminTab) => void;
 }) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [backupStatus, setBackupStatus] = useState<string | null>(null);
+
+  const handleExport = () => {
+    try {
+      const dataStr = exportCatalog();
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const date = new Date().toISOString().split("T")[0];
+      link.href = url;
+      link.download = `nostalgiando-catalogo-${date}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setBackupStatus("Backup exportado com sucesso! Guarde este arquivo em segurança.");
+      setTimeout(() => setBackupStatus(null), 5000);
+    } catch (e) {
+      console.error("Erro ao exportar:", e);
+      setBackupStatus("Erro ao gerar backup.");
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const content = event.target?.result as string;
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const updated = await importCatalog(parsed);
+            setShows(updated);
+            setBackupStatus(`Sucesso! ${updated.length} títulos foram importados e sincronizados na nuvem.`);
+            setTimeout(() => setBackupStatus(null), 6000);
+          } else {
+            alert("Arquivo JSON inválido. Certifique-se de que é um backup exportado do Nostalgiando.");
+          }
+        } catch (err) {
+          alert("Erro ao processar arquivo JSON. Verifique a formatação.");
+        }
+      };
+      reader.readAsText(file);
+    } catch (err) {
+      console.error("Erro ao importar arquivo:", err);
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const stats = [
     {
       label: "Total no Catálogo",
@@ -469,7 +533,7 @@ function DashboardView({
       value: CATEGORIES.filter((c) => c.id !== "todos").length,
       icon: FolderOpen,
       color: "from-emerald-500 to-teal-600",
-      glow: "rgba(16,185,129,0.3)",
+      glow: "rgba(160,185,129,0.3)",
     },
     {
       label: "Com Streaming / Player",
@@ -489,6 +553,23 @@ function DashboardView({
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+      {/* Mensagem de Feedback do Backup */}
+      {backupStatus && (
+        <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/15 p-4 text-emerald-400 font-bold text-sm flex items-center gap-2 animate-in fade-in duration-300">
+          <Check className="h-5 w-5 shrink-0" />
+          <span>{backupStatus}</span>
+        </div>
+      )}
+
+      {/* Input Oculto de Importação */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept=".json"
+        onChange={handleImportFile}
+        className="hidden"
+      />
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((stat) => {
@@ -514,7 +595,7 @@ function DashboardView({
 
       {/* Quick Actions + All Titles Showcase */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Ações Rápidas & Distribuição */}
+        {/* Ações Rápidas & Backup */}
         <div className="space-y-6">
           <div className="rounded-2xl border border-white/10 bg-card/90 p-5 sm:p-6 shadow-card">
             <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2 mb-4">
@@ -542,6 +623,34 @@ function DashboardView({
               >
                 <FolderOpen className="h-5 w-5" />
                 Gerenciar por Categoria
+              </button>
+            </div>
+          </div>
+
+          {/* Backup & Proteção Contra Versionamentos */}
+          <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-b from-amber-500/10 to-card p-5 sm:p-6 shadow-card">
+            <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 mb-2">
+              <Save className="h-4 w-4 text-amber-400" />
+              Backup & Sincronização
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+              Exporte seus títulos personalizados em arquivo JSON para garantir que nenhuma edição seja perdida entre atualizações do site.
+            </p>
+
+            <div className="space-y-2.5">
+              <button
+                onClick={handleExport}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground text-sm font-bold border border-white/10 transition-all active:scale-95"
+              >
+                <Download className="h-4 w-4 text-primary" />
+                Baixar Backup (.json)
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground text-sm font-bold border border-white/10 transition-all active:scale-95"
+              >
+                <Upload className="h-4 w-4 text-amber-400" />
+                Restaurar do Backup (.json)
               </button>
             </div>
           </div>

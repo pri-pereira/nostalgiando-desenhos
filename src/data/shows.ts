@@ -678,9 +678,56 @@ export const shelves = async () => {
   }));
 };
 
+export const exportCatalog = (): string => {
+  const currentList = getCachedShows();
+  return JSON.stringify(currentList, null, 2);
+};
+
+export const importCatalog = async (newShows: Show[]): Promise<Show[]> => {
+  if (!Array.isArray(newShows) || newShows.length === 0) {
+    throw new Error("Formato de catálogo inválido.");
+  }
+
+  // 1. Salva localmente
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newShows));
+    notifyCatalogUpdated(newShows);
+  } catch (e) {
+    console.error("Erro ao salvar importação:", e);
+  }
+
+  // 2. Salva todos no Firestore
+  if (db) {
+    for (const s of newShows) {
+      try {
+        await setDoc(
+          doc(db, FIRESTORE_COLLECTION, s.slug),
+          {
+            slug: s.slug,
+            title: s.title,
+            year: s.year,
+            category: s.category,
+            poster: s.poster,
+            synopsis: s.synopsis,
+            archiveId: s.archiveId || null,
+            episodes: s.episodes || [],
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn("Aviso ao sincronizar show importado no Firestore:", s.slug, err);
+      }
+    }
+  }
+
+  return newShows;
+};
+
 // Mantido para compatibilidade síncrona temporária onde precisar
 export const getStaticShow = (slug: string) => {
   return DEFAULT_CATALOG_SHOWS.find((s) => s.slug === slug) || SHOWS.find((s) => s.slug === slug);
 };
+
 
 
