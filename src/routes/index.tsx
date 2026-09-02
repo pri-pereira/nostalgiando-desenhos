@@ -31,7 +31,7 @@ function Home() {
     const cached = getCachedShows();
     return CATEGORIES.filter((c) => c.id !== "todos").map((c) => ({
       ...c,
-      shows: cached.filter((s) => s.category === c.id),
+      shows: c.id === "catalogo" ? cached : cached.filter((s) => s.category === c.id),
     }));
   });
 

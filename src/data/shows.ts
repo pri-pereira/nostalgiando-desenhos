@@ -41,7 +41,7 @@ export const CATEGORIES = [
     id: "catalogo",
     label: "Catálogo",
     shortLabel: "Catálogo",
-    description: "Desenhos adicionados através do painel de administrador.",
+    description: "Todos os desenhos clássicos e títulos reunidos no Nostalgiando.",
   },
   {
     id: "classicos-tv-aberta",
@@ -650,7 +650,7 @@ export const shelves = async () => {
   const allShows = await getAllShows();
   return CATEGORIES.filter((c) => c.id !== "todos").map((c) => ({
     ...c,
-    shows: allShows.filter((s) => s.category === c.id),
+    shows: c.id === "catalogo" ? allShows : allShows.filter((s) => s.category === c.id),
   }));
 };
 
