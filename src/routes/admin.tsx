@@ -38,6 +38,10 @@ import {
   User,
   ShieldCheck,
   Loader2,
+  Users,
+  KeyRound,
+  ShieldAlert,
+  UserCheck,
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import {
@@ -54,6 +58,7 @@ import {
   syncAllShowsToCloud,
   resetCatalogToDefault,
 } from "@/data/shows";
+import { getAllUsers, type UserProfile, ADMIN_EMAIL } from "@/lib/users";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -66,10 +71,10 @@ export const Route = createFileRoute("/admin")({
 });
 
 // Tabs do painel
-type AdminTab = "dashboard" | "titulos" | "adicionar" | "categorias";
+type AdminTab = "dashboard" | "titulos" | "adicionar" | "categorias" | "usuarios";
 
 function AdminPage() {
-  const { isAdmin, isLoading } = useAuth();
+  const { isAdmin, is2FAVerified, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -80,7 +85,8 @@ function AdminPage() {
     );
   }
 
-  if (!isAdmin) {
+  // Se não for admin ou se ainda não validou o 2FA, vai para o gate
+  if (!isAdmin || !is2FAVerified) {
     return <AdminAccessGate />;
   }
 
@@ -88,19 +94,25 @@ function AdminPage() {
 }
 
 // ============================================================================
-// TELA DE ACESSO (GATE - LOGIN FIREBASE AUTH)
+// TELA DE ACESSO (GATE - LOGIN FIREBASE AUTH + 2FA)
 // ============================================================================
 function AdminAccessGate() {
-  const { login, loginAsAdmin } = useAuth();
+  const { user, isAdmin, is2FAVerified, login, loginAsAdmin, verify2FA, logout } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // 2FA Pin State
+  const [pin, setPin] = useState("");
+
   // Modo alternativo (código numérico de emergência)
   const [useCodeMode, setUseCodeMode] = useState(false);
   const [accessCode, setAccessCode] = useState("");
+
+  // Se o usuário já está logado no Firebase como admin, mas falta o segundo fator:
+  const isPending2FA = isAdmin && !is2FAVerified;
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,6 +147,23 @@ function AdminAccessGate() {
     }
   };
 
+  const handle2FASubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (pin.trim().length !== 6) {
+      setError("O PIN de segurança deve ter exatamente 6 dígitos.");
+      return;
+    }
+
+    if (verify2FA(pin.trim())) {
+      setError("");
+    } else {
+      setError("PIN de segurança incorreto. Tente novamente.");
+      setPin("");
+    }
+  };
+
   const handleCodeLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (loginAsAdmin(accessCode)) {
@@ -162,138 +191,213 @@ function AdminAccessGate() {
         </Link>
 
         <div className="rounded-3xl border border-white/10 bg-card/90 backdrop-blur-2xl p-6 sm:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)]">
-          <div className="text-center mb-6">
-            <span className="inline-grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 text-white shadow-[0_0_25px_rgba(239,68,68,0.4)] mb-4">
-              <ShieldCheck className="h-8 w-8" />
-            </span>
-            <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
-              Painel Admin
-            </h1>
-            <p className="text-base text-muted-foreground mt-2">
-              {useCodeMode
-                ? "Digite o código de acesso de emergência"
-                : "Acesse com sua conta de administrador"}
-            </p>
-          </div>
+          {/* SEGUNDO FATOR DE AUTENTICAÇÃO (2FA) */}
+          {isPending2FA ? (
+            <div>
+              <div className="text-center mb-6">
+                <span className="inline-grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-[0_0_25px_rgba(245,158,11,0.4)] mb-4 animate-bounce">
+                  <KeyRound className="h-8 w-8" />
+                </span>
+                <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
+                  Segundo Fator (2FA)
+                </h1>
+                <p className="text-xs text-emerald-400 font-semibold mt-1">
+                  ✓ Identidade confirmada: {user?.email}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Digite seu <strong>PIN de segurança de 6 dígitos</strong> para liberar o painel:
+                </p>
+              </div>
 
-          {!useCodeMode ? (
-            <form onSubmit={handleEmailLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">
-                  E-mail de Administrador
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <form onSubmit={handle2FASubmit} className="space-y-4">
+                <div>
                   <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seuemail@exemplo.com"
-                    required
-                    className="w-full h-13 rounded-2xl border border-white/10 bg-secondary/40 pl-12 pr-4 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    type="password"
+                    maxLength={6}
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                    placeholder="••••••"
+                    className="w-full h-14 rounded-2xl border border-white/10 bg-secondary/40 px-4 text-center text-3xl font-bold tracking-[0.35em] text-foreground placeholder:text-muted-foreground/30 focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    autoFocus
+                  />
+                  <p className="text-[11px] text-muted-foreground text-center mt-1.5">
+                    PIN inicial padrão: <strong>252525</strong>
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="rounded-xl bg-destructive/15 border border-destructive/30 px-4 py-3 text-sm font-semibold text-destructive text-center animate-in fade-in duration-200">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full h-13 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-base shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <ShieldCheck className="h-5 w-5" />
+                  <span>Validar e Entrar</span>
+                </button>
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => logout()}
+                    className="text-xs text-muted-foreground hover:text-destructive transition-colors underline cursor-pointer"
+                  >
+                    Entrar com outra conta
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : !useCodeMode ? (
+            /* ETAPA 1: LOGIN COM EMAIL E SENHA */
+            <div>
+              <div className="text-center mb-6">
+                <span className="inline-grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 text-white shadow-[0_0_25px_rgba(239,68,68,0.4)] mb-4">
+                  <ShieldCheck className="h-8 w-8" />
+                </span>
+                <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
+                  Painel Admin
+                </h1>
+                <p className="text-base text-muted-foreground mt-2">
+                  Acesse com sua conta de administrador
+                </p>
+              </div>
+
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">
+                    E-mail de Administrador
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="priscillasantosp24@gmail.com"
+                      required
+                      className="w-full h-13 rounded-2xl border border-white/10 bg-secondary/40 pl-12 pr-4 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">
+                    Senha
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      className="w-full h-13 rounded-2xl border border-white/10 bg-secondary/40 pl-12 pr-12 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="rounded-xl bg-destructive/15 border border-destructive/30 px-4 py-3 text-sm font-semibold text-destructive text-center animate-in fade-in duration-200">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-13 rounded-2xl bg-gradient-to-r from-red-500 to-orange-600 text-white font-bold text-base shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Verificando credenciais...</span>
+                    </>
+                  ) : (
+                    <span>Avançar para Etapa 2 (2FA)</span>
+                  )}
+                </button>
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError("");
+                      setUseCodeMode(true);
+                    }}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors underline cursor-pointer"
+                  >
+                    Entrar com código numérico de emergência (2525)
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            /* MODO DE CONTINGÊNCIA COM CÓDIGO 2525 */
+            <div>
+              <div className="text-center mb-6">
+                <span className="inline-grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 text-white shadow-[0_0_25px_rgba(239,68,68,0.4)] mb-4">
+                  <Settings className="h-8 w-8" />
+                </span>
+                <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
+                  Acesso de Emergência
+                </h1>
+                <p className="text-base text-muted-foreground mt-2">
+                  Digite o código numérico de 4 dígitos
+                </p>
+              </div>
+
+              <form onSubmit={handleCodeLogin} className="space-y-4">
+                <div>
+                  <input
+                    type="password"
+                    value={accessCode}
+                    onChange={(e) => setAccessCode(e.target.value)}
+                    placeholder="Código (ex: 2525)"
+                    maxLength={10}
+                    className="w-full h-14 rounded-2xl border border-white/10 bg-secondary/40 px-4 text-center text-2xl font-bold tracking-[0.25em] text-foreground placeholder:text-muted-foreground/50 placeholder:tracking-normal placeholder:text-base placeholder:font-normal focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     autoFocus
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">
-                  Senha
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    className="w-full h-13 rounded-2xl border border-white/10 bg-secondary/40 pl-12 pr-12 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                  />
+                {error && (
+                  <div className="rounded-xl bg-destructive/15 border border-destructive/30 px-4 py-3 text-sm font-semibold text-destructive text-center animate-in fade-in duration-200">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full h-13 rounded-2xl bg-gradient-to-r from-red-500 to-orange-600 text-white font-bold text-base shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] active:scale-[0.98] cursor-pointer"
+                >
+                  Acessar com Código
+                </button>
+
+                <div className="pt-2 text-center">
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => {
+                      setError("");
+                      setUseCodeMode(false);
+                    }}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors underline cursor-pointer"
                   >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    Voltar para login com E-mail e Senha
                   </button>
                 </div>
-              </div>
-
-              {error && (
-                <div className="rounded-xl bg-destructive/15 border border-destructive/30 px-4 py-3 text-sm font-semibold text-destructive text-center animate-in fade-in duration-200">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-13 rounded-2xl bg-gradient-to-r from-red-500 to-orange-600 text-white font-bold text-base shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Conectando ao Firebase...</span>
-                  </>
-                ) : (
-                  <span>Entrar como Administrador</span>
-                )}
-              </button>
-
-              <div className="pt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError("");
-                    setUseCodeMode(true);
-                  }}
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors underline cursor-pointer"
-                >
-                  Entrar com código numérico (2525)
-                </button>
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={handleCodeLogin} className="space-y-4">
-              <div>
-                <input
-                  type="password"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
-                  placeholder="Código (ex: 2525)"
-                  maxLength={10}
-                  className="w-full h-14 rounded-2xl border border-white/10 bg-secondary/40 px-4 text-center text-2xl font-bold tracking-[0.25em] text-foreground placeholder:text-muted-foreground/50 placeholder:tracking-normal placeholder:text-base placeholder:font-normal focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                  autoFocus
-                />
-              </div>
-
-              {error && (
-                <div className="rounded-xl bg-destructive/15 border border-destructive/30 px-4 py-3 text-sm font-semibold text-destructive text-center animate-in fade-in duration-200">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="w-full h-13 rounded-2xl bg-gradient-to-r from-red-500 to-orange-600 text-white font-bold text-base shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] active:scale-[0.98] cursor-pointer"
-              >
-                Acessar com Código
-              </button>
-
-              <div className="pt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError("");
-                    setUseCodeMode(false);
-                  }}
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors underline cursor-pointer"
-                >
-                  Voltar para login com E-mail e Senha
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           )}
         </div>
       </div>
@@ -314,8 +418,13 @@ function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Lista de Usuários do Firestore
+  const [usersList, setUsersList] = useState<UserProfile[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
   useEffect(() => {
     loadAllShows();
+    loadUsers();
 
     const handleCatalogUpdate = (e: any) => {
       if (e?.detail && Array.isArray(e.detail)) {
@@ -332,6 +441,18 @@ function AdminDashboard() {
       window.removeEventListener("storage", handleCatalogUpdate);
     };
   }, []);
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const u = await getAllUsers();
+      setUsersList(u);
+    } catch (err) {
+      console.warn("Aviso ao carregar usuários:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   const loadAllShows = async () => {
     try {
@@ -391,6 +512,7 @@ function AdminDashboard() {
   const menuItems: { id: AdminTab; icon: any; label: string }[] = [
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { id: "titulos", icon: Film, label: "Todos os Títulos" },
+    { id: "usuarios", icon: Users, label: "Usuários" },
     { id: "adicionar", icon: Plus, label: "Adicionar Novo" },
     { id: "categorias", icon: FolderOpen, label: "Categorias" },
   ];
@@ -461,6 +583,11 @@ function AdminDashboard() {
                 {item.id === "titulos" && (
                   <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-bold text-foreground">
                     {shows.length}
+                  </span>
+                )}
+                {item.id === "usuarios" && (
+                  <span className="rounded-full bg-primary/20 text-primary border border-primary/30 px-2.5 py-0.5 text-xs font-bold">
+                    {usersList.length}
                   </span>
                 )}
               </button>
@@ -579,6 +706,13 @@ function AdminDashboard() {
                   deleteShow={handleDeleteShow}
                   updateShow={handleUpdateShow}
                   setActiveTab={setActiveTab}
+                />
+              )}
+              {activeTab === "usuarios" && (
+                <AdminUsersTab
+                  users={usersList}
+                  loading={loadingUsers}
+                  onRefresh={loadUsers}
                 />
               )}
               {activeTab === "adicionar" && (
@@ -1647,3 +1781,229 @@ function CategoriasView({
     </div>
   );
 }
+
+// ============================================================================
+// ABA DE USUÁRIOS (GERENCIAMENTO DE SEGUIDORES E ADMINS)
+// ============================================================================
+function AdminUsersTab({
+  users,
+  loading,
+  onRefresh,
+}: {
+  users: UserProfile[];
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredUsers = useMemo(() => {
+    if (!searchTerm.trim()) return users;
+    const term = searchTerm.toLowerCase();
+    return users.filter(
+      (u) =>
+        u.email.toLowerCase().includes(term) ||
+        u.name.toLowerCase().includes(term) ||
+        u.role.toLowerCase().includes(term)
+    );
+  }, [users, searchTerm]);
+
+  const totalAdmins = users.filter((u) => u.role === "admin").length;
+  const totalFollowers = users.filter((u) => u.role !== "admin").length;
+
+  const formatDate = (isoStr?: string) => {
+    if (!isoStr) return "-";
+    try {
+      return new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(isoStr));
+    } catch {
+      return isoStr;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header com Boas-vindas e Ações */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold font-display text-foreground flex items-center gap-2.5">
+            <Users className="h-7 w-7 text-primary" />
+            Usuários Cadastrados
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Acompanhe os seguidores cadastrados no Nostalgiando e os acessos à plataforma.
+          </p>
+        </div>
+
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-secondary/50 text-foreground hover:bg-secondary transition-all text-sm font-semibold active:scale-95 disabled:opacity-50 cursor-pointer"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-primary" : ""}`} />
+          <span>{loading ? "Atualizando..." : "Recarregar Lista"}</span>
+        </button>
+      </div>
+
+      {/* Cards de Métricas */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Total de Cadastros
+            </span>
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+              <Users className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-3xl font-black text-foreground">{users.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">Registrados no Firestore</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Seguidores
+            </span>
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-500/10 text-blue-400">
+              <UserCheck className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-3xl font-black text-blue-400">{totalFollowers}</div>
+            <p className="text-xs text-muted-foreground mt-1">Membros ativos</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Administradores
+            </span>
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-orange-500/10 text-orange-400">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-3xl font-black text-orange-400">{totalAdmins}</div>
+            <p className="text-xs text-muted-foreground mt-1">Com acesso master 2FA</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Barra de Pesquisa */}
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Pesquisar usuário por nome, e-mail ou tipo..."
+          className="w-full h-12 rounded-2xl border border-white/10 bg-card pl-12 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+        />
+      </div>
+
+      {/* Tabela de Usuários */}
+      <div className="rounded-2xl border border-white/10 bg-card overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-secondary/40 border-b border-border/60 text-xs uppercase font-bold text-muted-foreground">
+              <tr>
+                <th className="px-5 py-4">Usuário</th>
+                <th className="px-5 py-4">Tipo</th>
+                <th className="px-5 py-4">Data de Cadastro</th>
+                <th className="px-5 py-4">Último Acesso</th>
+                <th className="px-5 py-4 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map((u) => {
+                  const isAdminUser = u.role === "admin";
+                  const initial = (u.name || u.email || "U").charAt(0).toUpperCase();
+
+                  return (
+                    <tr key={u.uid} className="hover:bg-secondary/20 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`grid h-10 w-10 place-items-center rounded-xl font-bold text-sm shrink-0 ${
+                              isAdminUser
+                                ? "bg-gradient-to-br from-red-500 to-orange-600 text-white shadow-md shadow-orange-500/20"
+                                : "bg-secondary text-primary border border-white/5"
+                            }`}
+                          >
+                            {initial}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-foreground truncate">{u.name}</div>
+                            <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        {isAdminUser ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-500/15 text-orange-400 border border-orange-500/30">
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Admin Master
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-secondary text-muted-foreground border border-white/5">
+                            <UserCheck className="h-3.5 w-3.5" />
+                            Seguidor
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-5 py-4 text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDate(u.createdAt)}
+                      </td>
+
+                      <td className="px-5 py-4 text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDate(u.lastLogin)}
+                      </td>
+
+                      <td className="px-5 py-4 text-center">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Ativo
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-muted-foreground">
+                    {loading ? (
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <span>Buscando usuários no Firestore...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <Users className="h-8 w-8 text-muted-foreground/40" />
+                        <p className="font-semibold text-foreground">Nenhum seguidor encontrado</p>
+                        <p className="text-xs text-muted-foreground">
+                          Assim que novos usuários criarem conta no site, eles aparecerão aqui em tempo real.
+                        </p>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
