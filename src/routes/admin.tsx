@@ -109,7 +109,6 @@ function AdminAccessGate() {
     login,
     verify2FA,
     confirmTotpSetup,
-    resetTotp,
     logout,
   } = useAuth();
 
@@ -435,22 +434,11 @@ function AdminAccessGate() {
                     )}
                   </button>
 
-                  <div className="pt-2 flex flex-col items-center gap-2 text-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm("Deseja reconfigurar o QR Code para ler em outro aparelho?")) {
-                          resetTotp();
-                        }
-                      }}
-                      className="text-xs text-muted-foreground hover:text-primary transition-colors underline cursor-pointer"
-                    >
-                      Trocou de celular? Reconfigurar QR Code
-                    </button>
+                  <div className="pt-2 text-center">
                     <button
                       type="button"
                       onClick={() => logout()}
-                      className="text-xs text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                      className="text-xs text-muted-foreground hover:text-destructive transition-colors underline cursor-pointer"
                     >
                       Entrar com outra conta
                     </button>
