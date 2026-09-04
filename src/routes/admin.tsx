@@ -61,7 +61,7 @@ import {
   syncAllShowsToCloud,
   resetCatalogToDefault,
 } from "@/data/shows";
-import { getAllUsers, type UserProfile, ADMIN_EMAIL } from "@/lib/users";
+import { getAllUsers, type UserProfile, ADMIN_EMAIL, ADMIN_EMAILS, isAdminEmail } from "@/lib/users";
 import { generateTotpSecret, generateOtpAuthUri, getQrCodeImageUrl } from "@/lib/totp";
 
 export const Route = createFileRoute("/admin")({
@@ -141,7 +141,7 @@ function AdminAccessGate() {
 
   const otpAuthUri = useMemo(() => {
     if (!setupSecret) return "";
-    return generateOtpAuthUri(user?.email || "priscillasantosp24@gmail.com", setupSecret, "Nostalgiando");
+    return generateOtpAuthUri(user?.email || "admin@nostalgiando.com", setupSecret, "Nostalgiando");
   }, [setupSecret, user?.email]);
 
   const qrImageUrl = useMemo(() => {
@@ -499,7 +499,7 @@ function AdminAccessGate() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="priscillasantosp24@gmail.com"
+                      placeholder="admin@nostalgiando.com"
                       required
                       className="w-full h-13 rounded-2xl border border-white/10 bg-secondary/40 pl-12 pr-4 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                       autoFocus
@@ -2035,8 +2035,8 @@ function AdminUsersTab({
     );
   }, [users, searchTerm]);
 
-  const totalAdmins = users.filter((u) => u.role === "admin").length;
-  const totalFollowers = users.filter((u) => u.role !== "admin").length;
+  const totalAdmins = users.filter((u) => u.role === "admin" || isAdminEmail(u.email)).length;
+  const totalFollowers = users.filter((u) => u.role !== "admin" && !isAdminEmail(u.email)).length;
 
   const formatDate = (isoStr?: string) => {
     if (!isoStr) return "-";
@@ -2153,7 +2153,7 @@ function AdminUsersTab({
             <tbody className="divide-y divide-border/40">
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((u) => {
-                  const isAdminUser = u.role === "admin";
+                  const isAdminUser = u.role === "admin" || isAdminEmail(u.email);
                   const initial = (u.name || u.email || "U").charAt(0).toUpperCase();
 
                   return (

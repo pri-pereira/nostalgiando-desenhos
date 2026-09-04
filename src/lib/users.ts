@@ -10,8 +10,23 @@ export interface UserProfile {
   status: "ativo" | "inativo";
 }
 
-export const ADMIN_EMAIL = "priscillasantosp24@gmail.com";
+export const ADMIN_EMAILS: string[] = [
+  "priscillasantosp24@gmail.com",
+  "juniordrones1981@gmail.com",
+];
+
+// Mantém exportação para compatibilidade com código existente
+export const ADMIN_EMAIL = ADMIN_EMAILS[0];
 export const USERS_COLLECTION = "users";
+
+/**
+ * Verifica se um e-mail pertence ao grupo de administradores
+ */
+export function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const clean = email.trim().toLowerCase();
+  return ADMIN_EMAILS.some((adm) => adm.toLowerCase() === clean);
+}
 
 // Chave e PIN padrão de segurança de 2 fatores (2FA)
 export const DEFAULT_2FA_PIN = "252525";
@@ -25,11 +40,11 @@ export async function createUserProfile(
   email: string,
   customName?: string
 ): Promise<UserProfile> {
-  const isMasterAdmin = email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isMasterAdmin = isAdminEmail(email);
   const name =
     customName?.trim() ||
     email.split("@")[0]?.replace(/[._-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) ||
-    "Nostálgico";
+    (isMasterAdmin ? "Administrador" : "Nostálgico");
 
   const userProfile: UserProfile = {
     uid,
@@ -114,6 +129,7 @@ export const TOTP_STORAGE_KEY = "nostalgiando_totp_secret";
 
 export async function saveAdminTotpSecret(uid: string, secret: string): Promise<void> {
   if (typeof window !== "undefined") {
+    localStorage.setItem(`${TOTP_STORAGE_KEY}_${uid}`, secret);
     localStorage.setItem(TOTP_STORAGE_KEY, secret);
   }
   if (db) {
@@ -134,6 +150,8 @@ export async function saveAdminTotpSecret(uid: string, secret: string): Promise<
  */
 export async function getAdminTotpSecret(uid: string): Promise<string | null> {
   if (typeof window !== "undefined") {
+    const localUid = localStorage.getItem(`${TOTP_STORAGE_KEY}_${uid}`);
+    if (localUid) return localUid;
     const local = localStorage.getItem(TOTP_STORAGE_KEY);
     if (local) return local;
   }
@@ -143,7 +161,7 @@ export async function getAdminTotpSecret(uid: string): Promise<string | null> {
       if (snap.exists() && snap.data()?.totpSecret) {
         const secret = snap.data().totpSecret as string;
         if (typeof window !== "undefined") {
-          localStorage.setItem(TOTP_STORAGE_KEY, secret);
+          localStorage.setItem(`${TOTP_STORAGE_KEY}_${uid}`, secret);
         }
         return secret;
       }
@@ -159,6 +177,7 @@ export async function getAdminTotpSecret(uid: string): Promise<string | null> {
  */
 export async function resetAdminTotpSecret(uid: string): Promise<void> {
   if (typeof window !== "undefined") {
+    localStorage.removeItem(`${TOTP_STORAGE_KEY}_${uid}`);
     localStorage.removeItem(TOTP_STORAGE_KEY);
   }
   if (db) {

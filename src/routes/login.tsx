@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Tv, Mail, Lock, Eye, EyeOff, ArrowLeft, Sparkles, User } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
-import { ADMIN_EMAIL } from "@/lib/users";
+import { isAdminEmail } from "@/lib/users";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -61,7 +61,7 @@ function LoginPage() {
         setTimeout(() => navigate({ to: "/" }), 1500);
       } else {
         await login(email, password);
-        const isAdminUser = email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        const isAdminUser = isAdminEmail(email);
         if (isAdminUser) {
           navigate({ to: "/admin" });
         } else {

@@ -11,6 +11,8 @@ import {
   createUserProfile,
   updateUserLastLogin,
   ADMIN_EMAIL,
+  ADMIN_EMAILS,
+  isAdminEmail,
   saveAdminTotpSecret,
   getAdminTotpSecret,
   resetAdminTotpSecret,
@@ -59,8 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const isMaster =
-          firebaseUser.email?.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        const isMaster = isAdminEmail(firebaseUser.email);
         if (isMaster) {
           setIsAdmin(true);
 
@@ -99,13 +100,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    const isMaster =
-      cred.user.email?.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const isMaster = isAdminEmail(cred.user.email);
 
     if (isMaster) {
       setIsAdmin(true);
       setIs2FAVerified(false); // Sempre exige o 2FA para o admin
-      // Carrega o segredo TOTP
+      // Carrega o segredo TOTP do respectivo admin
       const secret = await getAdminTotpSecret(cred.user.uid);
       if (secret) {
         setTotpSecret(secret);
@@ -122,8 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (email: string, password: string) => {
     if (!auth) throw new Error("Firebase Auth não inicializado");
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    const isMaster =
-      cred.user.email?.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const isMaster = isAdminEmail(cred.user.email);
 
     if (isMaster) {
       setIsAdmin(true);
