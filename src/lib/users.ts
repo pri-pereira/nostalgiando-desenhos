@@ -10,10 +10,19 @@ export interface UserProfile {
   status: "ativo" | "inativo";
 }
 
-export const ADMIN_EMAILS: string[] = [
-  "priscillasantosp24@gmail.com",
-  "juniordrones1981@gmail.com",
-];
+// Carrega lista de administradores a partir de variável de ambiente segura (Vercel/.env)
+const envAdminEmails = (import.meta.env.VITE_ADMIN_EMAILS || "")
+  .split(",")
+  .map((e: string) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+export const ADMIN_EMAILS: string[] =
+  envAdminEmails.length > 0
+    ? envAdminEmails
+    : [
+        "priscillasantosp24@gmail.com",
+        "juniordrones1981@gmail.com",
+      ];
 
 // Mantém exportação para compatibilidade com código existente
 export const ADMIN_EMAIL = ADMIN_EMAILS[0];
@@ -27,10 +36,6 @@ export function isAdminEmail(email: string | null | undefined): boolean {
   const clean = email.trim().toLowerCase();
   return ADMIN_EMAILS.some((adm) => adm.toLowerCase() === clean);
 }
-
-// Chave e PIN padrão de segurança de 2 fatores (2FA)
-export const DEFAULT_2FA_PIN = "252525";
-export const PIN_STORAGE_KEY = "nostalgiando_admin_pin";
 
 /**
  * Cria ou atualiza o perfil do usuário no Firestore
@@ -107,19 +112,6 @@ export async function getAllUsers(): Promise<UserProfile[]> {
     console.error("Erro ao buscar usuários do Firestore:", err);
     return [];
   }
-}
-
-/**
- * Verifica se o PIN de 2 fatores está correto
- */
-export function verifyAdmin2FAPin(inputPin: string): boolean {
-  if (typeof window !== "undefined") {
-    const customPin = localStorage.getItem(PIN_STORAGE_KEY);
-    if (customPin && inputPin.trim() === customPin.trim()) {
-      return true;
-    }
-  }
-  return inputPin.trim() === DEFAULT_2FA_PIN;
 }
 
 /**

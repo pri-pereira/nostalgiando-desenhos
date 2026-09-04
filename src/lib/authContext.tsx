@@ -16,7 +16,6 @@ import {
   saveAdminTotpSecret,
   getAdminTotpSecret,
   resetAdminTotpSecret,
-  verifyAdmin2FAPin,
 } from "./users";
 import { verifyTotpCode } from "./totp";
 
