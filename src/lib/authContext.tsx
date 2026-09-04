@@ -39,7 +39,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const ADMIN_CODE = "2525";
 const ADMIN_KEY = "nostalgiando_admin_session";
 const TWO_FA_SESSION_KEY = "nostalgiando_admin_2fa_ok";
 
@@ -133,12 +132,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Valida o código do aplicativo autenticador (ou o PIN padrão/código de emergência)
+   * Valida o código do aplicativo Google Authenticator (TOTP)
    */
   const verify2FA = async (code: string): Promise<boolean> => {
     const clean = code.trim();
 
-    // 1. Se tem segredo TOTP configurado, valida pelo algoritmo RFC 6238 do Authenticator
+    // Valida pelo algoritmo RFC 6238 do Google Authenticator
     if (totpSecret) {
       const isValid = await verifyTotpCode(clean, totpSecret);
       if (isValid) {
@@ -148,15 +147,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return true;
       }
-    }
-
-    // 2. Fallback para PIN padrão de contingência
-    if (verifyAdmin2FAPin(clean)) {
-      setIs2FAVerified(true);
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(TWO_FA_SESSION_KEY, "true");
-      }
-      return true;
     }
 
     return false;
@@ -215,16 +205,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loginAsAdmin = (code: string): boolean => {
-    if (code === ADMIN_CODE) {
-      setIsAdmin(true);
-      setIs2FAVerified(true);
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(ADMIN_KEY, "true");
-        sessionStorage.setItem(TWO_FA_SESSION_KEY, "true");
-      }
-      return true;
-    }
+  const loginAsAdmin = (_code: string): boolean => {
+    // Autenticação oficial de admin agora é exclusivamente via Firebase Auth + 2FA
     return false;
   };
 

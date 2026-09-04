@@ -107,7 +107,6 @@ function AdminAccessGate() {
     is2FAVerified,
     isTotpConfigured,
     login,
-    loginAsAdmin,
     verify2FA,
     confirmTotpSetup,
     resetTotp,
@@ -124,10 +123,6 @@ function AdminAccessGate() {
   const [pin, setPin] = useState("");
   const [setupSecret, setSetupSecret] = useState<string>("");
   const [copied, setCopied] = useState(false);
-
-  // Modo alternativo (código numérico de emergência)
-  const [useCodeMode, setUseCodeMode] = useState(false);
-  const [accessCode, setAccessCode] = useState("");
 
   // Se o usuário já está logado no Firebase como admin, mas falta o segundo fator:
   const isPending2FA = isAdmin && !is2FAVerified;
@@ -235,16 +230,6 @@ function AdminAccessGate() {
       setError(err?.message || "Erro ao validar 2FA.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCodeLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loginAsAdmin(accessCode)) {
-      setError("");
-    } else {
-      setError("Código de acesso incorreto!");
-      setAccessCode("");
     }
   };
 
@@ -473,7 +458,7 @@ function AdminAccessGate() {
                 </form>
               </div>
             )
-          ) : !useCodeMode ? (
+          ) : (
             /* ETAPA 1: LOGIN COM EMAIL E SENHA */
             <div>
               <div className="text-center mb-6">
@@ -551,74 +536,6 @@ function AdminAccessGate() {
                     <span>Avançar para Etapa 2 (2FA)</span>
                   )}
                 </button>
-
-                <div className="pt-2 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setError("");
-                      setUseCodeMode(true);
-                    }}
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors underline cursor-pointer"
-                  >
-                    Entrar com código numérico de emergência (2525)
-                  </button>
-                </div>
-              </form>
-            </div>
-          ) : (
-            /* MODO DE CONTINGÊNCIA COM CÓDIGO 2525 */
-            <div>
-              <div className="text-center mb-6">
-                <span className="inline-grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 text-white shadow-[0_0_25px_rgba(239,68,68,0.4)] mb-4">
-                  <Settings className="h-8 w-8" />
-                </span>
-                <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
-                  Acesso de Emergência
-                </h1>
-                <p className="text-base text-muted-foreground mt-2">
-                  Digite o código numérico de 4 dígitos
-                </p>
-              </div>
-
-              <form onSubmit={handleCodeLogin} className="space-y-4">
-                <div>
-                  <input
-                    type="password"
-                    value={accessCode}
-                    onChange={(e) => setAccessCode(e.target.value)}
-                    placeholder="Código (ex: 2525)"
-                    maxLength={10}
-                    className="w-full h-14 rounded-2xl border border-white/10 bg-secondary/40 px-4 text-center text-2xl font-bold tracking-[0.25em] text-foreground placeholder:text-muted-foreground/50 placeholder:tracking-normal placeholder:text-base placeholder:font-normal focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    autoFocus
-                  />
-                </div>
-
-                {error && (
-                  <div className="rounded-xl bg-destructive/15 border border-destructive/30 px-4 py-3 text-sm font-semibold text-destructive text-center animate-in fade-in duration-200">
-                    {error}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  className="w-full h-13 rounded-2xl bg-gradient-to-r from-red-500 to-orange-600 text-white font-bold text-base shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] active:scale-[0.98] cursor-pointer"
-                >
-                  Acessar com Código
-                </button>
-
-                <div className="pt-2 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setError("");
-                      setUseCodeMode(false);
-                    }}
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors underline cursor-pointer"
-                  >
-                    Voltar para login com E-mail e Senha
-                  </button>
-                </div>
               </form>
             </div>
           )}
