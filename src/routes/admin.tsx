@@ -768,9 +768,14 @@ function AdminDashboard() {
               <h2 className="font-display text-base font-bold text-foreground truncate">
                 Painel Admin
               </h2>
-              <p className="text-xs text-primary font-bold tracking-wider uppercase">
-                Nostalgiando
-              </p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs text-primary font-bold tracking-wider uppercase">
+                  Nostalgiando
+                </p>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 text-[10px] font-bold tracking-tight border border-emerald-500/20">
+                  2FA Ativo
+                </span>
+              </div>
             </div>
           </div>
           <button
