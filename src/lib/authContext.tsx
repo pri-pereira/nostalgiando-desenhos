@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isMaster) {
           setIsAdmin(true);
 
-          // Verifica se já tem segredo TOTP cadastrado
+          // Busca segredo TOTP do Firestore
           try {
             const secret = await getAdminTotpSecret(firebaseUser.uid);
             if (secret) {
@@ -76,15 +76,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch (err) {
             console.warn("Aviso ao carregar TOTP:", err);
           }
-
-          // Verifica se 2FA já foi validado na sessão atual
-          if (typeof window !== "undefined") {
-            const has2fa = sessionStorage.getItem(TWO_FA_SESSION_KEY);
-            if (has2fa === "true") {
-              setIs2FAVerified(true);
-            }
-          }
         }
+      } else {
+        setIsAdmin(false);
+        setIs2FAVerified(false);
+        setTotpSecret(null);
+        setIsTotpConfigured(false);
       }
       setIsLoading(false);
     });
@@ -92,25 +89,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  // Verificar sessão admin de emergência no sessionStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const adminSession = sessionStorage.getItem(ADMIN_KEY);
-      if (adminSession === "true") {
-        setIsAdmin(true);
-        setIs2FAVerified(true);
-      }
-    }
-  }, []);
-
   const login = async (email: string, password: string) => {
     if (!auth) throw new Error("Firebase Auth não inicializado");
+    // Garante que o 2FA não fique pré-validado de logins anteriores
+    setIs2FAVerified(false);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(ADMIN_KEY);
+      sessionStorage.removeItem(TWO_FA_SESSION_KEY);
+    }
+
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const isMaster =
       cred.user.email?.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
     if (isMaster) {
       setIsAdmin(true);
+      setIs2FAVerified(false); // Sempre exige o 2FA para o admin
       // Carrega o segredo TOTP
       const secret = await getAdminTotpSecret(cred.user.uid);
       if (secret) {
