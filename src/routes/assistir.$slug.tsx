@@ -59,6 +59,7 @@ export const Route = createFileRoute("/assistir/$slug")({
 
 function Watch() {
   const { show: serverShow, slug } = Route.useLoaderData();
+  const { user } = useAuth();
   
   // Resolvemos o show real no cliente.
   const [show, setShow] = useState<Show | undefined>(serverShow);
@@ -96,7 +97,6 @@ function Watch() {
   }, [show, user]);
 
   // Paywall: 40 segundos para usuários não logados
-  const { user } = useAuth();
   const [showPaywall, setShowPaywall] = useState(false);
   const paywallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);

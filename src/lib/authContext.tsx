@@ -38,13 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
+      if (firebaseUser) {
+        setIsAdmin(true);
+      }
       setIsLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Verificar sessão admin no localStorage
+  // Verificar sessão admin no localStorage/sessionStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
       const adminSession = sessionStorage.getItem(ADMIN_KEY);
@@ -55,18 +58,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    if (!auth) throw new Error("Auth não inicializado");
+    if (!auth) throw new Error("Firebase Auth não inicializado");
     await signInWithEmailAndPassword(auth, email, password);
+    setIsAdmin(true);
   };
 
   const register = async (email: string, password: string) => {
-    if (!auth) throw new Error("Auth não inicializado");
+    if (!auth) throw new Error("Firebase Auth não inicializado");
     await createUserWithEmailAndPassword(auth, email, password);
+    setIsAdmin(true);
   };
 
   const logout = async () => {
-    if (!auth) return;
-    await firebaseSignOut(auth);
+    if (auth) {
+      try {
+        await firebaseSignOut(auth);
+      } catch (err) {
+        console.warn("Erro ao deslogar Firebase:", err);
+      }
+    }
+    setUser(null);
     setIsAdmin(false);
     if (typeof window !== "undefined") {
       sessionStorage.removeItem(ADMIN_KEY);
@@ -85,10 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logoutAdmin = () => {
-    setIsAdmin(false);
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem(ADMIN_KEY);
-    }
+    logout();
   };
 
   return (

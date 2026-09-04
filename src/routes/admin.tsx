@@ -32,6 +32,12 @@ import {
   Upload,
   Cloud,
   RefreshCw,
+  Lock,
+  Mail,
+  EyeOff,
+  User,
+  ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import {
@@ -46,6 +52,7 @@ import {
   exportCatalog,
   importCatalog,
   syncAllShowsToCloud,
+  resetCatalogToDefault,
 } from "@/data/shows";
 
 export const Route = createFileRoute("/admin")({
@@ -62,47 +69,78 @@ export const Route = createFileRoute("/admin")({
 type AdminTab = "dashboard" | "titulos" | "adicionar" | "categorias";
 
 function AdminPage() {
-  const { isAdmin, loginAsAdmin, logoutAdmin } = useAuth();
-  const [accessCode, setAccessCode] = useState("");
-  const [accessError, setAccessError] = useState("");
+  const { isAdmin, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Verificando sessão de administrador...</p>
+      </div>
+    );
+  }
 
   if (!isAdmin) {
-    return (
-      <AdminAccessGate
-        accessCode={accessCode}
-        setAccessCode={setAccessCode}
-        accessError={accessError}
-        setAccessError={setAccessError}
-        loginAsAdmin={loginAsAdmin}
-      />
-    );
+    return <AdminAccessGate />;
   }
 
   return <AdminDashboard />;
 }
 
 // ============================================================================
-// TELA DE ACESSO (GATE)
+// TELA DE ACESSO (GATE - LOGIN FIREBASE AUTH)
 // ============================================================================
-function AdminAccessGate({
-  accessCode,
-  setAccessCode,
-  accessError,
-  setAccessError,
-  loginAsAdmin,
-}: {
-  accessCode: string;
-  setAccessCode: (v: string) => void;
-  accessError: string;
-  setAccessError: (v: string) => void;
-  loginAsAdmin: (code: string) => boolean;
-}) {
-  const handleAccess = (e: React.FormEvent) => {
+function AdminAccessGate() {
+  const { login, loginAsAdmin } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // Modo alternativo (código numérico de emergência)
+  const [useCodeMode, setUseCodeMode] = useState(false);
+  const [accessCode, setAccessCode] = useState("");
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email.trim() || !password) {
+      setError("Por favor, preencha o e-mail e a senha.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await login(email.trim(), password);
+    } catch (err: any) {
+      console.error("Erro no login admin:", err);
+      const code = err?.code || "";
+      if (
+        code === "auth/user-not-found" ||
+        code === "auth/wrong-password" ||
+        code === "auth/invalid-credential"
+      ) {
+        setError("E-mail ou senha incorretos.");
+      } else if (code === "auth/invalid-email") {
+        setError("Formato de e-mail inválido.");
+      } else if (code === "auth/too-many-requests") {
+        setError("Muitas tentativas. Aguarde alguns instantes e tente novamente.");
+      } else {
+        setError(err?.message || "Falha na conexão com o Firebase.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCodeLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (loginAsAdmin(accessCode)) {
-      setAccessError("");
+      setError("");
     } else {
-      setAccessError("Código de acesso incorreto!");
+      setError("Código de acesso incorreto!");
       setAccessCode("");
     }
   };
@@ -126,42 +164,137 @@ function AdminAccessGate({
         <div className="rounded-3xl border border-white/10 bg-card/90 backdrop-blur-2xl p-6 sm:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)]">
           <div className="text-center mb-6">
             <span className="inline-grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 text-white shadow-[0_0_25px_rgba(239,68,68,0.4)] mb-4">
-              <Settings className="h-8 w-8" />
+              <ShieldCheck className="h-8 w-8" />
             </span>
             <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
               Painel Admin
             </h1>
             <p className="text-base text-muted-foreground mt-2">
-              Digite a senha de administrador (4 dígitos)
+              {useCodeMode
+                ? "Digite o código de acesso de emergência"
+                : "Acesse com sua conta de administrador"}
             </p>
           </div>
 
-          <form onSubmit={handleAccess} className="space-y-4">
-            <div>
-              <input
-                type="password"
-                value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value)}
-                placeholder="Código de acesso (ex: 2525)"
-                maxLength={10}
-                className="w-full h-14 rounded-2xl border border-white/10 bg-secondary/40 px-4 text-center text-2xl font-bold tracking-[0.25em] text-foreground placeholder:text-muted-foreground/50 placeholder:tracking-normal placeholder:text-base placeholder:font-normal focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                autoFocus
-              />
-            </div>
-
-            {accessError && (
-              <div className="rounded-xl bg-destructive/15 border border-destructive/30 px-4 py-3 text-sm font-semibold text-destructive text-center animate-in fade-in duration-200">
-                {accessError}
+          {!useCodeMode ? (
+            <form onSubmit={handleEmailLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">
+                  E-mail de Administrador
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seuemail@exemplo.com"
+                    required
+                    className="w-full h-13 rounded-2xl border border-white/10 bg-secondary/40 pl-12 pr-4 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    autoFocus
+                  />
+                </div>
               </div>
-            )}
 
-            <button
-              type="submit"
-              className="w-full h-14 rounded-2xl bg-gradient-to-r from-red-500 to-orange-600 text-white font-bold text-base shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] active:scale-[0.98]"
-            >
-              Acessar Painel
-            </button>
-          </form>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">
+                  Senha
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    className="w-full h-13 rounded-2xl border border-white/10 bg-secondary/40 pl-12 pr-12 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="rounded-xl bg-destructive/15 border border-destructive/30 px-4 py-3 text-sm font-semibold text-destructive text-center animate-in fade-in duration-200">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-13 rounded-2xl bg-gradient-to-r from-red-500 to-orange-600 text-white font-bold text-base shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Conectando ao Firebase...</span>
+                  </>
+                ) : (
+                  <span>Entrar como Administrador</span>
+                )}
+              </button>
+
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError("");
+                    setUseCodeMode(true);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors underline cursor-pointer"
+                >
+                  Entrar com código numérico (2525)
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleCodeLogin} className="space-y-4">
+              <div>
+                <input
+                  type="password"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value)}
+                  placeholder="Código (ex: 2525)"
+                  maxLength={10}
+                  className="w-full h-14 rounded-2xl border border-white/10 bg-secondary/40 px-4 text-center text-2xl font-bold tracking-[0.25em] text-foreground placeholder:text-muted-foreground/50 placeholder:tracking-normal placeholder:text-base placeholder:font-normal focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  autoFocus
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-xl bg-destructive/15 border border-destructive/30 px-4 py-3 text-sm font-semibold text-destructive text-center animate-in fade-in duration-200">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full h-13 rounded-2xl bg-gradient-to-r from-red-500 to-orange-600 text-white font-bold text-base shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] active:scale-[0.98] cursor-pointer"
+              >
+                Acessar com Código
+              </button>
+
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError("");
+                    setUseCodeMode(false);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors underline cursor-pointer"
+                >
+                  Voltar para login com E-mail e Senha
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>
@@ -172,7 +305,7 @@ function AdminAccessGate({
 // DASHBOARD PRINCIPAL
 // ============================================================================
 function AdminDashboard() {
-  const { logoutAdmin } = useAuth();
+  const { logoutAdmin, user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [shows, setShows] = useState<Show[]>(() => getCachedShows());
@@ -337,6 +470,12 @@ function AdminDashboard() {
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-border/60 space-y-2">
+          {user?.email && (
+            <div className="px-3.5 py-2.5 rounded-xl bg-secondary/50 border border-white/5 flex items-center gap-2.5 text-xs text-muted-foreground">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="truncate font-medium">{user.email}</span>
+            </div>
+          )}
           <Link
             to="/"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-all border border-transparent"
@@ -349,7 +488,7 @@ function AdminDashboard() {
               logoutAdmin();
               navigate({ to: "/" });
             }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-all border border-transparent"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-all border border-transparent cursor-pointer"
           >
             <LogOut className="h-4 w-4" />
             Sair do Admin
@@ -384,6 +523,13 @@ function AdminDashboard() {
 
             {/* Ações do Topo */}
             <div className="flex items-center gap-2">
+              {user?.email && (
+                <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/60 border border-white/5 text-xs text-muted-foreground">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="font-medium text-foreground truncate max-w-[170px]">{user.email}</span>
+                </div>
+              )}
+
               <Link
                 to="/"
                 className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl border border-white/10 bg-secondary/50 text-muted-foreground hover:text-primary hover:bg-secondary/80 hover:border-primary/40 text-sm font-bold transition-all active:scale-95"
@@ -396,7 +542,7 @@ function AdminDashboard() {
               {activeTab !== "adicionar" && (
                 <button
                   onClick={() => setActiveTab("adicionar")}
-                  className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/90 transition-all active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/90 transition-all active:scale-95 cursor-pointer"
                 >
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Adicionar</span> Título
@@ -1213,7 +1359,7 @@ function AdicionarView({
         "https://via.placeholder.com/800x1200/111827/ffffff?text=" + encodeURIComponent(title),
       synopsis:
         synopsis.trim() || "Desenho clássico adicionado através do painel de administração.",
-      archiveId: archiveId.trim() || undefined,
+      ...(archiveId.trim() ? { archiveId: archiveId.trim() } : {}),
       episodes: [],
     };
 

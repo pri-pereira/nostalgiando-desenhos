@@ -47,6 +47,7 @@ export function HeroCarousel({ shows }: HeroCarouselProps) {
   if (trending.length === 0) return null;
 
   const currentItem = trending[currentIndex] || trending[0];
+  if (!currentItem) return null;
   const { show, badge, rank } = currentItem;
 
   const handlePrev = () => {

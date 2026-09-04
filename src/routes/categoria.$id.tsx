@@ -173,7 +173,7 @@ function CategoriaView() {
                         : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary/70 border border-white/5"
                     }`}
                   >
-                    <span>{cat.shortLabel || cat.label}</span>
+                    <span>{(cat as any).shortLabel || (cat as any).label}</span>
                   </Link>
                 );
               })}

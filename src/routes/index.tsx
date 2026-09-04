@@ -101,7 +101,7 @@ function Home() {
 
   const userName = user
     ? user.displayName ||
-      user.email?.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) ||
+      user.email?.split("@")[0]?.replace(/[._-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) ||
       "Nostálgico"
     : null;
 

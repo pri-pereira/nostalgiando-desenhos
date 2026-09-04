@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - Nostalgiando</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4 md:p-8 flex items-center justify-center">
+
+    <!-- Card Principal -->
+    <div class="w-full max-w-md bg-gray-800 p-6 md:p-8 rounded-2xl shadow-2xl border border-gray-700">
+
+        <!-- 1. TELA DE LOGIN (Aparece se não estiver logado) -->
+        <div id="secao-login">
+            <div class="text-center mb-6">
+                <span class="text-4xl">🔐</span>
+                <h1 class="text-2xl font-black text-orange-400 mt-2">Área Restrita</h1>
+                <p class="text-sm text-gray-400">Faça login com sua conta de administrador</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-400 mb-1">E-mail</label>
+                    <input id="login-email" type="email" placeholder="admin@nostalgiando.com" 
+                        class="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-orange-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-gray-400 mb-1">Senha</label>
+                    <input id="login-senha" type="password" placeholder="••••••••" 
+                        class="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-orange-500 focus:outline-none">
+                </div>
+
+                <button id="btn-login" class="w-full bg-orange-500 hover:bg-orange-600 active:scale-98 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                    Entrar no Painel
+                </button>
+
+                <p id="login-erro" class="text-center text-red-400 text-sm font-semibold hidden"></p>
+            </div>
+        </div>
+
+        <!-- 2. TELA DO PAINEL ADMIN (Aparece apenas quando logado) -->
+        <div id="secao-admin" class="hidden">
+            <div class="flex items-center justify-between border-b border-gray-700 pb-4 mb-6">
+                <div>
+                    <h2 class="text-xl font-black text-orange-400">Cadastrar Desenho</h2>
+                    <p id="user-badge" class="text-xs text-gray-400 truncate max-w-[200px]"></p>
+                </div>
+                <button id="btn-logout" class="text-xs bg-gray-700 hover:bg-red-600/80 px-3 py-1.5 rounded-md font-bold transition duration-200">
+                    Sair
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-400 mb-1">Nome do Desenho</label>
+                    <input id="titulo-desenho" type="text" placeholder="Ex: He-Man e os Defensores" 
+                        class="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-orange-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-gray-400 mb-1">ID do Internet Archive</label>
+                    <input id="id-archive" type="text" placeholder="Ex: he-man-completo-ptbr" 
+                        class="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-orange-500 focus:outline-none">
+                </div>
+
+                <button id="btn-salvar" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                    Salvar no Banco de Dados
+                </button>
+
+                <p id="mensagem" class="text-center text-green-400 font-bold hidden">Desenho adicionado com sucesso!</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyANYUbCp_kaF_bE1g6vEqoxNidvIB6AFuw",
+            authDomain: "nostalgiando-desenhos.firebaseapp.com",
+            projectId: "nostalgiando-desenhos",
+            storageBucket: "nostalgiando-desenhos.firebasestorage.app",
+            messagingSenderId: "934707372124",
+            appId: "1:934707372124:web:093c7fff16254990224699"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const secaoLogin = document.getElementById('secao-login');
+        const secaoAdmin = document.getElementById('secao-admin');
+        const userBadge = document.getElementById('user-badge');
+        const loginErro = document.getElementById('login-erro');
+
+        // Monitora o estado de login
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                secaoLogin.classList.add('hidden');
+                secaoAdmin.classList.remove('hidden');
+                userBadge.textContent = user.email;
+            } else {
+                secaoLogin.classList.remove('hidden');
+                secaoAdmin.classList.add('hidden');
+            }
+        });
+
+        // Botão de Login
+        document.getElementById('btn-login').addEventListener('click', async () => {
+            const email = document.getElementById('login-email').value.trim();
+            const senha = document.getElementById('login-senha').value;
+            loginErro.classList.add('hidden');
+
+            if (!email || !senha) {
+                loginErro.textContent = "Preencha e-mail e senha.";
+                loginErro.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                await signInWithEmailAndPassword(auth, email, senha);
+            } catch (err) {
+                console.error("Erro ao autenticar:", err);
+                loginErro.textContent = "E-mail ou senha inválidos.";
+                loginErro.classList.remove('hidden');
+            }
+        });
+
+        // Botão de Sair
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            signOut(auth);
+        });
+
+        // Botão de Salvar Desenho
+        document.getElementById('btn-salvar').addEventListener('click', async () => {
+            const titulo = document.getElementById('titulo-desenho').value.trim();
+            const archiveId = document.getElementById('id-archive').value.trim();
+
+            if (!titulo || !archiveId) {
+                alert("Preencha o nome e o ID do Internet Archive!");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "desenhos"), {
+                    nome: titulo,
+                    archiveId: archiveId,
+                    dataAdicao: new Date()
+                });
+
+                const msg = document.getElementById('mensagem');
+                msg.classList.remove('hidden');
+                document.getElementById('titulo-desenho').value = '';
+                document.getElementById('id-archive').value = '';
+
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            } catch (e) {
+                console.error("Erro ao salvar:", e);
+                alert("Erro ao salvar: Verifique se você está autenticado e com as permissões corretas.");
+            }
+        });
+    </script>
+</body>
+</html>
