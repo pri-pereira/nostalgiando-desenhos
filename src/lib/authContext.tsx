@@ -11,19 +11,27 @@ import {
   createUserProfile,
   updateUserLastLogin,
   ADMIN_EMAIL,
+  saveAdminTotpSecret,
+  getAdminTotpSecret,
+  resetAdminTotpSecret,
   verifyAdmin2FAPin,
 } from "./users";
+import { verifyTotpCode } from "./totp";
 
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
   is2FAVerified: boolean;
   isLoading: boolean;
+  isTotpConfigured: boolean;
+  totpSecret: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   loginAsAdmin: (code: string) => boolean;
-  verify2FA: (pin: string) => boolean;
+  verify2FA: (pinOrCode: string) => Promise<boolean>;
+  confirmTotpSetup: (secret: string, code: string) => Promise<boolean>;
+  resetTotp: () => Promise<void>;
   logoutAdmin: () => void;
 }
 
@@ -37,6 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [is2FAVerified, setIs2FAVerified] = useState(false);
+  const [isTotpConfigured, setIsTotpConfigured] = useState(false);
+  const [totpSecret, setTotpSecret] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Observar estado de autenticação do Firebase
@@ -46,13 +56,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
         const isMaster =
           firebaseUser.email?.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
         if (isMaster) {
           setIsAdmin(true);
+
+          // Verifica se já tem segredo TOTP cadastrado
+          try {
+            const secret = await getAdminTotpSecret(firebaseUser.uid);
+            if (secret) {
+              setTotpSecret(secret);
+              setIsTotpConfigured(true);
+            } else {
+              setIsTotpConfigured(false);
+            }
+          } catch (err) {
+            console.warn("Aviso ao carregar TOTP:", err);
+          }
+
           // Verifica se 2FA já foi validado na sessão atual
           if (typeof window !== "undefined") {
             const has2fa = sessionStorage.getItem(TWO_FA_SESSION_KEY);
@@ -87,6 +111,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (isMaster) {
       setIsAdmin(true);
+      // Carrega o segredo TOTP
+      const secret = await getAdminTotpSecret(cred.user.uid);
+      if (secret) {
+        setTotpSecret(secret);
+        setIsTotpConfigured(true);
+      } else {
+        setIsTotpConfigured(false);
+      }
     }
 
     // Registra último login no Firestore
@@ -107,15 +139,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await createUserProfile(cred.user.uid, email);
   };
 
-  const verify2FA = (pin: string): boolean => {
-    if (verifyAdmin2FAPin(pin)) {
+  /**
+   * Valida o código do aplicativo autenticador (ou o PIN padrão/código de emergência)
+   */
+  const verify2FA = async (code: string): Promise<boolean> => {
+    const clean = code.trim();
+
+    // 1. Se tem segredo TOTP configurado, valida pelo algoritmo RFC 6238 do Authenticator
+    if (totpSecret) {
+      const isValid = await verifyTotpCode(clean, totpSecret);
+      if (isValid) {
+        setIs2FAVerified(true);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(TWO_FA_SESSION_KEY, "true");
+        }
+        return true;
+      }
+    }
+
+    // 2. Fallback para PIN padrão de contingência
+    if (verifyAdmin2FAPin(clean)) {
       setIs2FAVerified(true);
       if (typeof window !== "undefined") {
         sessionStorage.setItem(TWO_FA_SESSION_KEY, "true");
       }
       return true;
     }
+
     return false;
+  };
+
+  /**
+   * Confirma a ativação inicial do 2FA escaneado via QR Code
+   */
+  const confirmTotpSetup = async (secret: string, code: string): Promise<boolean> => {
+    const isValid = await verifyTotpCode(code, secret);
+    if (!isValid) {
+      return false;
+    }
+
+    if (user) {
+      await saveAdminTotpSecret(user.uid, secret);
+    }
+    setTotpSecret(secret);
+    setIsTotpConfigured(true);
+    setIs2FAVerified(true);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(TWO_FA_SESSION_KEY, "true");
+    }
+    return true;
+  };
+
+  /**
+   * Permite reconfigurar o QR Code caso o admin queira
+   */
+  const resetTotp = async () => {
+    if (user) {
+      await resetAdminTotpSecret(user.uid);
+    }
+    setTotpSecret(null);
+    setIsTotpConfigured(false);
+    setIs2FAVerified(false);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(TWO_FA_SESSION_KEY);
+    }
   };
 
   const logout = async () => {
@@ -159,11 +246,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin,
         is2FAVerified,
         isLoading,
+        isTotpConfigured,
+        totpSecret,
         login,
         register,
         logout,
         loginAsAdmin,
         verify2FA,
+        confirmTotpSetup,
+        resetTotp,
         logoutAdmin,
       }}
     >

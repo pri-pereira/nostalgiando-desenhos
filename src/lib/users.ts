@@ -108,15 +108,67 @@ export function verifyAdmin2FAPin(inputPin: string): boolean {
 }
 
 /**
- * Permite ao admin alterar o PIN de 2 fatores
+ * Salva a chave secreta TOTP do Administrador
  */
-export function setAdmin2FAPin(newPin: string): boolean {
-  if (newPin.trim().length !== 6 || isNaN(Number(newPin))) {
-    return false;
-  }
+export const TOTP_STORAGE_KEY = "nostalgiando_totp_secret";
+
+export async function saveAdminTotpSecret(uid: string, secret: string): Promise<void> {
   if (typeof window !== "undefined") {
-    localStorage.setItem(PIN_STORAGE_KEY, newPin.trim());
-    return true;
+    localStorage.setItem(TOTP_STORAGE_KEY, secret);
   }
-  return false;
+  if (db) {
+    try {
+      await setDoc(
+        doc(db, USERS_COLLECTION, uid),
+        { totpSecret: secret, totpEnabled: true },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn("Aviso ao salvar segredo TOTP no Firestore:", err);
+    }
+  }
+}
+
+/**
+ * Recupera a chave secreta TOTP do Administrador
+ */
+export async function getAdminTotpSecret(uid: string): Promise<string | null> {
+  if (typeof window !== "undefined") {
+    const local = localStorage.getItem(TOTP_STORAGE_KEY);
+    if (local) return local;
+  }
+  if (db) {
+    try {
+      const snap = await getDoc(doc(db, USERS_COLLECTION, uid));
+      if (snap.exists() && snap.data()?.totpSecret) {
+        const secret = snap.data().totpSecret as string;
+        if (typeof window !== "undefined") {
+          localStorage.setItem(TOTP_STORAGE_KEY, secret);
+        }
+        return secret;
+      }
+    } catch (err) {
+      console.warn("Aviso ao buscar segredo TOTP do Firestore:", err);
+    }
+  }
+  return null;
+}
+
+/**
+ * Reseta a chave TOTP do Administrador (para reconfigurar QR Code)
+ */
+export async function resetAdminTotpSecret(uid: string): Promise<void> {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(TOTP_STORAGE_KEY);
+  }
+  if (db) {
+    try {
+      await updateDoc(doc(db, USERS_COLLECTION, uid), {
+        totpSecret: null,
+        totpEnabled: false,
+      });
+    } catch (err) {
+      console.warn("Aviso ao resetar segredo TOTP no Firestore:", err);
+    }
+  }
 }
