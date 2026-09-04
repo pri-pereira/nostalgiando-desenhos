@@ -59,7 +59,7 @@ export const Route = createFileRoute("/assistir/$slug")({
 
 function Watch() {
   const { show: serverShow, slug } = Route.useLoaderData();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   
   // Resolvemos o show real no cliente.
   const [show, setShow] = useState<Show | undefined>(serverShow);
@@ -139,48 +139,125 @@ function Watch() {
 
   // Efeito para buscar episódios dinâmicos se o show possuir archiveId
   useEffect(() => {
-    if (show?.archiveId) {
-      setIsLoading(true);
-      fetch(`https://archive.org/metadata/${show.archiveId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.files) {
-            // Filtra apenas arquivos .mp4 e ordena pelo nome (opcional, para garantir ordem)
-            const mp4Files = data.files.filter((f: any) => f?.name?.endsWith(".mp4")).sort((a: any, b: any) => (a?.name || "").localeCompare(b?.name || ""));
-            
-            const mapped = mp4Files.map((f: any, idx: number) => {
-              // Tenta extrair a duração se disponível (em segundos)
-              let duration = "--:--";
-              if (f.length) {
-                const secs = Math.floor(parseFloat(f.length));
-                const m = Math.floor(secs / 60);
-                const s = secs % 60;
-                duration = `${m}:${s.toString().padStart(2, "0")}`;
-              }
+    const rawArchiveId = show?.archiveId;
+    if (!rawArchiveId) return;
 
-              // Limpa o nome do arquivo usando o mesmo padrão do script
-              const cleanName = decodeURIComponent(f.name)
-                .replace('.mp4', '')
-                .replace(/_/g, ' ')
-                .replace(/-/g, ' ')
-                .replace(/\+/g, ' ')
-                .replace(/ready/gi, '')
-                .trim();
-              
-              return {
-                id: f.name,
-                title: f.title || cleanName || `Episódio ${idx + 1}`,
-                synopsis: "Episódio resgatado do catálogo clássico dublado.",
-                duration: duration,
-                videoUrl: `https://archive.org/download/${show.archiveId}/${f.name}`,
-              };
-            });
+    // Sanitiza e limpa o archiveId (extrai ID se usuário colou URL completa ou se tiver nome de arquivo)
+    let safeId = rawArchiveId.trim();
+    if (safeId.includes("archive.org/details/")) {
+      safeId = safeId.split("archive.org/details/")[1]?.split("/")[0]?.split("?")[0] || safeId;
+    } else if (safeId.includes("archive.org/embed/")) {
+      safeId = safeId.split("archive.org/embed/")[1]?.split("/")[0]?.split("?")[0] || safeId;
+    } else if (safeId.includes("archive.org/download/")) {
+      safeId = safeId.split("archive.org/download/")[1]?.split("/")[0]?.split("?")[0] || safeId;
+    }
+    if (safeId.toLowerCase().includes("caverna") && (safeId.includes(".mp4") || safeId.includes("Amanha"))) {
+      safeId = "caverna-do-dragao-completo-ptbr-paixaoflix";
+    }
+    safeId = safeId.replace(/[^a-zA-Z0-9_.-]/g, "");
+
+    if (!safeId) return;
+
+    setIsLoading(true);
+    fetch(`https://archive.org/metadata/${safeId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.files) {
+          const isVideoFile = (name: string) => {
+            const lower = name.toLowerCase();
+            return (
+              lower.endsWith(".mp4") ||
+              lower.endsWith(".mkv") ||
+              lower.endsWith(".webm") ||
+              lower.endsWith(".avi") ||
+              lower.endsWith(".ogv") ||
+              lower.endsWith(".m4v")
+            );
+          };
+
+          const videoFiles = data.files
+            .filter((f: any) => {
+              if (!f?.name) return false;
+              const lower = f.name.toLowerCase();
+              if (
+                lower.endsWith(".xml") ||
+                lower.endsWith(".sqlite") ||
+                lower.endsWith(".torrent") ||
+                lower.endsWith(".png") ||
+                lower.endsWith(".jpg") ||
+                lower.endsWith(".json")
+              ) {
+                return false;
+              }
+              return (
+                isVideoFile(f.name) ||
+                f.format === "h.264" ||
+                f.format === "MPEG4" ||
+                f.format === "Matroska" ||
+                f.format === "512Kb MPEG4" ||
+                (f.format && f.format.toLowerCase().includes("video"))
+              );
+            })
+            .sort((a: any, b: any) =>
+              (a?.name || "").localeCompare(b?.name || "", undefined, {
+                numeric: true,
+                sensitivity: "base",
+              })
+            );
+
+          const mapped = videoFiles.map((f: any, idx: number) => {
+            let duration = "--:--";
+            if (f.length) {
+              const secs = Math.floor(parseFloat(f.length));
+              const m = Math.floor(secs / 60);
+              const s = secs % 60;
+              duration = `${m}:${s.toString().padStart(2, "0")}`;
+            }
+
+            const baseName = (f.name || "").split("/").pop() || f.name;
+            const cleanName = decodeURIComponent(baseName)
+              .replace(/\.(mp4|mkv|avi|webm|ogv|m4v)$/i, "")
+              .replace(/_/g, " ")
+              .replace(/-/g, " ")
+              .replace(/ready/gi, "")
+              .replace(/hidratorrent\.com/gi, "")
+              .trim();
+
+            const isMp4OrWebm =
+              f.name.toLowerCase().endsWith(".mp4") || f.name.toLowerCase().endsWith(".webm");
+
+            const videoUrl = isMp4OrWebm
+              ? `https://archive.org/download/${safeId}/${encodeURI(f.name)}`
+              : `https://archive.org/embed/${safeId}/${encodeURIComponent(f.name)}`;
+
+            return {
+              id: f.name,
+              title: f.title || cleanName || `Episódio ${idx + 1}`,
+              synopsis: "Episódio resgatado do catálogo clássico dublado.",
+              duration: duration,
+              videoUrl,
+            };
+          });
+
+          if (mapped.length === 0) {
+            setDynamicEpisodes([
+              {
+                id: "archive-embed-full",
+                title: show.title + " (Acervo Completo)",
+                synopsis: "Assista aos episódios resgatados diretamente do acervo.",
+                duration: "--:--",
+                videoUrl: `https://archive.org/embed/${safeId}`,
+              },
+            ]);
+          } else {
             setDynamicEpisodes(mapped);
           }
-        })
-        .catch(console.error)
-        .finally(() => setIsLoading(false));
-    }
+        }
+      })
+      .catch((err) => {
+        console.error("Erro ao buscar episódios no Internet Archive:", err);
+      })
+      .finally(() => setIsLoading(false));
   }, [show?.slug, show?.archiveId]);
 
   if (!show) {
@@ -256,14 +333,15 @@ function Watch() {
                 </div>
               ) : episode.videoUrl ? (
                 <>
-                  {episode.videoUrl.endsWith('.mp4') ? (
+                  {episode.videoUrl.includes('.mp4') && !episode.videoUrl.includes('/embed/') ? (
                     <video
                       key={episode.id}
                       ref={videoRef}
                       src={episode.videoUrl}
                       controls
                       autoPlay
-                      className="absolute inset-0 h-full w-full object-cover bg-black"
+                      playsInline
+                      className="absolute inset-0 h-full w-full object-contain bg-black"
                     />
                   ) : (
                     <iframe
@@ -272,7 +350,7 @@ function Watch() {
                       title={`${show.title} - ${episode.title}`}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
-                      className="absolute inset-0 h-full w-full border-0"
+                      className="absolute inset-0 h-full w-full border-0 bg-black"
                     />
                   )}
 
@@ -294,14 +372,28 @@ function Watch() {
                   )}
                 </>
               ) : (
-                <div className="relative h-full w-full select-none overflow-hidden bg-gradient-to-t from-black via-zinc-950 to-zinc-900">
-                  <img src={show.poster} alt={show.title} className="absolute inset-0 h-full w-full object-cover opacity-20 filter blur-xl scale-110" />
-                  <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
-                    <button onClick={() => setIsPlayingSimulated(!isPlayingSimulated)} className="group relative flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                      <Play className="h-9 w-9 fill-current translate-x-1" />
-                    </button>
-                    <p className="mt-2 text-lg font-bold text-foreground">{episode.title}</p>
+                <div className="relative h-full w-full select-none overflow-hidden bg-gradient-to-t from-black via-zinc-950 to-zinc-900 flex flex-col items-center justify-center p-6 text-center">
+                  <img src={show.poster} alt={show.title} className="absolute inset-0 h-full w-full object-cover opacity-15 filter blur-2xl scale-110" />
+                  <div className="absolute inset-0 bg-black/75 backdrop-blur-[2px]" />
+                  <div className="relative z-10 max-w-md flex flex-col items-center">
+                    <span className="grid h-16 w-16 place-items-center rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 mb-3 shadow-[0_0_30px_rgba(245,158,11,0.2)] animate-pulse">
+                      <Tv className="h-8 w-8" />
+                    </span>
+                    <h3 className="font-display text-xl font-bold text-foreground mb-1">
+                      {episode.title || "Aguardando Episódios"}
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                      Este título clássico faz parte do catálogo oficial. O acervo de vídeos no Internet Archive ainda não foi vinculado a este título.
+                    </p>
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90 transition-colors"
+                      >
+                        <Film className="h-3.5 w-3.5" />
+                        Vincular ID do Archive no Painel
+                      </Link>
+                    )}
                   </div>
                 </div>
               )}

@@ -1187,6 +1187,23 @@ function DashboardView({
   );
 }
 
+// Limpa e extrai ID do Internet Archive se o usuário colar URLs completas ou nomes de arquivos
+function sanitizeArchiveId(input?: string): string {
+  if (!input) return "";
+  let clean = input.trim();
+  if (clean.includes("archive.org/details/")) {
+    clean = clean.split("archive.org/details/")[1]?.split("/")[0]?.split("?")[0] || clean;
+  } else if (clean.includes("archive.org/embed/")) {
+    clean = clean.split("archive.org/embed/")[1]?.split("/")[0]?.split("?")[0] || clean;
+  } else if (clean.includes("archive.org/download/")) {
+    clean = clean.split("archive.org/download/")[1]?.split("/")[0]?.split("?")[0] || clean;
+  }
+  if (clean.toLowerCase().includes("caverna") && (clean.includes(".mp4") || clean.includes("Amanha"))) {
+    clean = "caverna-do-dragao-completo-ptbr-paixaoflix";
+  }
+  return clean.replace(/[^a-zA-Z0-9_.-]/g, "");
+}
+
 // ============================================================================
 // TÍTULOS VIEW (GERENCIAMENTO RESPONSIVO)
 // ============================================================================
@@ -1228,7 +1245,11 @@ function TitulosView({
   };
 
   const saveEdit = (slug: string) => {
-    updateShow(slug, editData);
+    const cleanArchive = sanitizeArchiveId(editData.archiveId);
+    updateShow(slug, {
+      ...editData,
+      archiveId: cleanArchive || undefined,
+    });
     setEditingSlug(null);
     setEditData({});
   };
@@ -1615,6 +1636,7 @@ function AdicionarView({
     }
 
     const finalSlug = slug.trim() || generateSlug(title);
+    const cleanArchive = sanitizeArchiveId(archiveId);
 
     const newShow: Show = {
       slug: finalSlug,
@@ -1626,7 +1648,7 @@ function AdicionarView({
         "https://via.placeholder.com/800x1200/111827/ffffff?text=" + encodeURIComponent(title),
       synopsis:
         synopsis.trim() || "Desenho clássico adicionado através do painel de administração.",
-      ...(archiveId.trim() ? { archiveId: archiveId.trim() } : {}),
+      ...(cleanArchive ? { archiveId: cleanArchive } : {}),
       episodes: [],
     };
 
