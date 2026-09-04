@@ -61,20 +61,22 @@ function Watch() {
   const { show: serverShow, slug } = Route.useLoaderData();
   const { user, isAdmin } = useAuth();
   
-  // Resolvemos o show real no cliente.
+  // Resolvemos o show real no cliente (atualiza da nuvem/Firestore mesmo se houver mock no SSR)
   const [show, setShow] = useState<Show | undefined>(serverShow);
 
   useEffect(() => {
-    if (!show && typeof window !== "undefined") {
-      const fetchDynamic = async () => {
-        const dynamicShow = await getShow(slug);
-        if (dynamicShow) {
+    let isMounted = true;
+    if (typeof window !== "undefined") {
+      getShow(slug).then((dynamicShow) => {
+        if (isMounted && dynamicShow) {
           setShow(dynamicShow);
         }
-      };
-      fetchDynamic();
+      });
     }
-  }, [show, slug]);
+    return () => {
+      isMounted = false;
+    };
+  }, [slug]);
 
   const [current, setCurrent] = useState(0);
   const [inList, setInList] = useState(false);
@@ -268,15 +270,20 @@ function Watch() {
     );
   }
 
-  // Define a lista de episódios (dinâmica ou estática do mock)
-  const episodesList = dynamicEpisodes.length > 0 ? dynamicEpisodes : (show.episodes || []);
-  const episode = episodesList[current] || (show.episodes && show.episodes.length > 0 ? show.episodes[0] : {
+  // Define a lista de episódios (prioriza episódios dinâmicos do Archive quando archiveId existe)
+  const episodesList = dynamicEpisodes.length > 0 
+    ? dynamicEpisodes 
+    : (show.archiveId && isLoading 
+        ? [] 
+        : (show.episodes || []));
+
+  const episode = episodesList[current] || (episodesList.length > 0 ? episodesList[0] : (show.episodes && show.episodes.length > 0 && !show.archiveId ? show.episodes[0] : {
     id: "empty",
-    title: "Sem Episódios",
-    synopsis: "Nenhum episódio foi encontrado para este desenho ainda.",
+    title: isLoading ? "Carregando acervo..." : "Sem Episódios",
+    synopsis: isLoading ? "Buscando episódios no Internet Archive..." : "Nenhum episódio foi encontrado para este desenho ainda.",
     duration: "--:--",
     videoUrl: ""
-  });
+  }));
   const related = SHOWS.filter((s) => s.slug !== show.slug).slice(0, 6);
 
   const handleShare = () => {
@@ -301,14 +308,6 @@ function Watch() {
     }
   };
 
-  if (!show) {
-    return (
-      <div className="min-h-screen bg-background pt-28 pb-16 flex items-center justify-center">
-        <h1 className="text-2xl text-white">Carregando...</h1>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background pt-28 pb-16 sm:pt-28">
       <SiteHeader />
@@ -326,7 +325,16 @@ function Watch() {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           <div className="lg:col-span-8">
             <div className="relative aspect-video w-full overflow-hidden rounded-3xl border border-border/80 bg-black shadow-2xl">
-              {!episode ? (
+              {isLoading ? (
+                <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center bg-black/95">
+                  <div className="relative mb-3 flex items-center justify-center">
+                    <span className="h-12 w-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                    <Tv className="absolute h-5 w-5 text-primary animate-pulse" />
+                  </div>
+                  <p className="text-sm font-bold text-foreground">Conectando ao acervo do Internet Archive...</p>
+                  <p className="text-xs text-muted-foreground mt-1">Carregando catálogo de episódios dublados</p>
+                </div>
+              ) : !episode ? (
                 <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground p-6 text-center">
                   <Tv className="h-12 w-12 mb-4 opacity-50" />
                   <p>Nenhum episódio encontrado para este título.</p>
@@ -432,34 +440,52 @@ function Watch() {
                 </div>
               </div>
               <div className="mt-3 flex flex-col gap-2.5 max-h-[580px] overflow-y-auto pr-1">
-                {episodesList.map((epItem, index) => {
-                  const isActive = index === current;
-                  const isWatched = watchedEpisodes.includes(epItem.id);
-                  return (
-                    <button
-                      key={epItem.id}
-                      onClick={() => setCurrent(index)}
-                      className={`group relative flex items-start gap-3 rounded-2xl border p-3 text-left transition-all ${
-                        isActive ? "border-primary bg-primary/15" : "border-border/70 bg-secondary/30"
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className={`block truncate font-bold text-sm ${isActive ? "text-primary" : "text-foreground"}`}>{epItem.title}</span>
-                        <div className="mt-1.5 flex items-center justify-between text-[11px]">
-                          <span className="font-semibold text-muted-foreground">{epItem.duration}</span>
-                          <div className="flex items-center gap-1.5">
-                            {isWatched && !isActive && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                                <CheckCircle2 className="h-3 w-3" /> Assistido
-                              </span>
-                            )}
-                            {isActive && <span className="font-bold text-primary animate-pulse text-[11px]">Assistindo</span>}
+                {isLoading ? (
+                  <div className="space-y-2.5 p-2">
+                    {[1, 2, 3, 4].map((n) => (
+                      <div key={n} className="animate-pulse rounded-2xl border border-border/40 bg-secondary/20 p-3">
+                        <div className="h-4 w-3/4 rounded bg-white/10 mb-2" />
+                        <div className="h-3 w-1/3 rounded bg-white/5" />
+                      </div>
+                    ))}
+                    <p className="text-center text-[11px] text-muted-foreground pt-1">
+                      Buscando episódios no acervo...
+                    </p>
+                  </div>
+                ) : episodesList.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-muted-foreground">
+                    Nenhum episódio encontrado.
+                  </div>
+                ) : (
+                  episodesList.map((epItem, index) => {
+                    const isActive = index === current;
+                    const isWatched = watchedEpisodes.includes(epItem.id);
+                    return (
+                      <button
+                        key={epItem.id}
+                        onClick={() => setCurrent(index)}
+                        className={`group relative flex items-start gap-3 rounded-2xl border p-3 text-left transition-all ${
+                          isActive ? "border-primary bg-primary/15" : "border-border/70 bg-secondary/30"
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className={`block truncate font-bold text-sm ${isActive ? "text-primary" : "text-foreground"}`}>{epItem.title}</span>
+                          <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                            <span className="font-semibold text-muted-foreground">{epItem.duration}</span>
+                            <div className="flex items-center gap-1.5">
+                              {isWatched && !isActive && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                                  <CheckCircle2 className="h-3 w-3" /> Assistido
+                                </span>
+                              )}
+                              {isActive && <span className="font-bold text-primary animate-pulse text-[11px]">Assistindo</span>}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

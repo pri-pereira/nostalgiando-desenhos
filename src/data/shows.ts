@@ -411,7 +411,7 @@ export const SHOWS: Show[] = [
   },
 ];
 
-import { db, collection, getDocs, doc, setDoc, deleteDoc } from "@/lib/firebase";
+import { db, collection, getDocs, getDoc, doc, setDoc, deleteDoc } from "@/lib/firebase";
 import catalogJson from "./catalog.json";
 import { persistCatalogToDiskServerFn } from "@/lib/serverSync";
 
@@ -698,9 +698,32 @@ export const resetCatalogToDefault = (): Show[] => {
   return DEFAULT_CATALOG_SHOWS;
 };
 
-export const getShow = async (slug: string) => {
+export const getShow = async (slug: string): Promise<Show | undefined> => {
+  if (typeof window !== "undefined" && db) {
+    try {
+      const docRef = doc(db, FIRESTORE_COLLECTION, slug);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const matchShow = SHOWS.find((s) => s.slug === (data.slug || docSnap.id));
+        return {
+          slug: data.slug || docSnap.id,
+          title: data.title || "",
+          year: data.year || "Clássico",
+          category: (data.category as CategoryId) || "catalogo",
+          poster: data.poster || matchShow?.poster || "",
+          synopsis: data.synopsis || "",
+          archiveId: data.archiveId || matchShow?.archiveId || undefined,
+          episodes: data.episodes || [],
+        };
+      }
+    } catch (err) {
+      console.warn("Aviso ao buscar show direto do Firestore:", err);
+    }
+  }
+
   const allShows = await getAllShows();
-  return allShows.find((s) => s.slug === slug);
+  return allShows.find((s) => s.slug === slug || (s as any).id === slug);
 };
 
 export const shelves = async () => {
