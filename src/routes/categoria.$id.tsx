@@ -78,7 +78,7 @@ function CategoriaView() {
     };
   }, [activeCategoryId]);
 
-  // Filtra títulos por categoria e por busca
+  // Filtra títulos por categoria e por busca, com ordenação alfabética (A a Z)
   const filteredShows = useMemo(() => {
     let list = shows;
 
@@ -97,7 +97,10 @@ function CategoriaView() {
       );
     }
 
-    return list;
+    // Classificação rigorosa por ordem alfabética (A a Z) dentro da categoria
+    return [...list].sort((a, b) =>
+      a.title.localeCompare(b.title, "pt-BR", { sensitivity: "base" })
+    );
   }, [shows, activeCategoryId, searchQuery]);
 
   return (
