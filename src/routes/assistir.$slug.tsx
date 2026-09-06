@@ -1,5 +1,5 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Play,
   ChevronLeft,
@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PosterCard } from "@/components/PosterCard";
-import { getShow, getStaticShow, SHOWS, type Episode, type Show } from "@/data/shows";
+import { getShow, getStaticShow, getCachedShows, getAllShows, type Episode, type Show } from "@/data/shows";
 import { useAuth } from "@/lib/authContext";
 import {
   saveWatchProgress,
@@ -63,6 +63,7 @@ function Watch() {
   
   // Resolvemos o show real no cliente (atualiza da nuvem/Firestore mesmo se houver mock no SSR)
   const [show, setShow] = useState<Show | undefined>(serverShow);
+  const [allShows, setAllShows] = useState<Show[]>(() => getCachedShows());
 
   useEffect(() => {
     let isMounted = true;
@@ -72,6 +73,32 @@ function Watch() {
           setShow(dynamicShow);
         }
       });
+
+      getAllShows().then((dynamicShows) => {
+        if (isMounted && dynamicShows && dynamicShows.length > 0) {
+          setAllShows(dynamicShows);
+        }
+      });
+
+      const handleCatalogUpdate = (e: any) => {
+        const showsList = e?.detail && Array.isArray(e.detail) ? e.detail : getCachedShows();
+        if (isMounted) {
+          setAllShows(showsList);
+          const currentUpdated = showsList.find((s: Show) => s.slug === slug);
+          if (currentUpdated) {
+            setShow(currentUpdated);
+          }
+        }
+      };
+
+      window.addEventListener("catalog_updated", handleCatalogUpdate);
+      window.addEventListener("storage", handleCatalogUpdate);
+
+      return () => {
+        isMounted = false;
+        window.removeEventListener("catalog_updated", handleCatalogUpdate);
+        window.removeEventListener("storage", handleCatalogUpdate);
+      };
     }
     return () => {
       isMounted = false;
@@ -284,7 +311,12 @@ function Watch() {
     duration: "--:--",
     videoUrl: ""
   }));
-  const related = SHOWS.filter((s) => s.slug !== show.slug).slice(0, 6);
+  const related = useMemo(() => {
+    const currentCategory = show.category;
+    const sameCat = allShows.filter((s) => s.slug !== show.slug && s.category === currentCategory);
+    const otherCat = allShows.filter((s) => s.slug !== show.slug && s.category !== currentCategory);
+    return [...sameCat, ...otherCat].slice(0, 10);
+  }, [allShows, show.slug, show.category]);
 
   const handleShare = () => {
     if (typeof window !== "undefined") {
