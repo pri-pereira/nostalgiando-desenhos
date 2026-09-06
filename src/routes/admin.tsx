@@ -45,6 +45,11 @@ import {
   QrCode,
   Smartphone,
   Copy,
+  Phone,
+  BadgeCheck,
+  XCircle,
+  CreditCard,
+  Hourglass,
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import {
@@ -66,6 +71,7 @@ import {
   deleteUserProfile,
   toggleUserStatus,
   ensureUserProfile,
+  updateUserPaymentStatus,
   type UserProfile,
   ADMIN_EMAIL,
   ADMIN_EMAILS,
@@ -866,6 +872,11 @@ function AdminDashboard() {
                   onUserStatusChanged={(uid, newStatus) => {
                     setUsersList((prev) =>
                       prev.map((u) => (u.uid === uid ? { ...u, status: newStatus } : u))
+                    );
+                  }}
+                  onPaymentStatusChanged={(uid, paymentStatus) => {
+                    setUsersList((prev) =>
+                      prev.map((u) => (u.uid === uid ? { ...u, paymentStatus } : u))
                     );
                   }}
                 />
@@ -1969,6 +1980,7 @@ function AdminUsersTab({
   currentUser,
   onUserDeleted,
   onUserStatusChanged,
+  onPaymentStatusChanged,
 }: {
   users: UserProfile[];
   loading: boolean;
@@ -1976,43 +1988,52 @@ function AdminUsersTab({
   currentUser?: any;
   onUserDeleted?: (uid: string) => void;
   onUserStatusChanged?: (uid: string, status: "ativo" | "inativo") => void;
+  onPaymentStatusChanged?: (uid: string, paymentStatus: "ativo" | "pendente" | "cancelado") => void;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [onlyActive, setOnlyActive] = useState(true);
+  const [filterTab, setFilterTab] = useState<"todos" | "ativos" | "pendentes" | "cancelados" | "admins">("todos");
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [updatingStatusUid, setUpdatingStatusUid] = useState<string | null>(null);
+  const [updatingUid, setUpdatingUid] = useState<string | null>(null);
 
-  // Usuários ativos
-  const activeUsers = useMemo(() => {
-    return users.filter((u) => u.status === "ativo");
-  }, [users]);
+  // Separar usuários regulares de admins para contagem correta
+  const regularUsers = users.filter((u) => u.role !== "admin" && !isAdminEmail(u.email));
+  const adminUsers = users.filter((u) => u.role === "admin" || isAdminEmail(u.email));
+  const activeSubscribers = regularUsers.filter((u) => u.paymentStatus === "ativo");
+  const pendingSubscribers = regularUsers.filter((u) => u.paymentStatus === "pendente");
+  const cancelledSubscribers = regularUsers.filter((u) => u.paymentStatus === "cancelado");
 
-  // Base da lista respeitando o filtro de ativos
-  const baseList = onlyActive ? activeUsers : users;
+  // Filtro por tab
+  const baseList = (() => {
+    switch (filterTab) {
+      case "ativos": return activeSubscribers;
+      case "pendentes": return pendingSubscribers;
+      case "cancelados": return cancelledSubscribers;
+      case "admins": return adminUsers;
+      default: return users;
+    }
+  })();
 
   // Filtragem por busca
-  const filteredUsers = useMemo(() => {
+  const filteredUsers = (() => {
     if (!searchTerm.trim()) return baseList;
     const term = searchTerm.toLowerCase();
     return baseList.filter(
       (u) =>
         u.email.toLowerCase().includes(term) ||
         u.name.toLowerCase().includes(term) ||
-        u.role.toLowerCase().includes(term)
+        (u.whatsapp || "").includes(term) ||
+        (u.planName || "").toLowerCase().includes(term)
     );
-  }, [baseList, searchTerm]);
-
-  const totalAdmins = baseList.filter((u) => u.role === "admin" || isAdminEmail(u.email)).length;
-  const totalFollowers = baseList.filter((u) => u.role !== "admin" && !isAdminEmail(u.email)).length;
+  })();
 
   const formatDate = (isoStr?: string) => {
-    if (!isoStr) return "-";
+    if (!isoStr) return "—";
     try {
       return new Intl.DateTimeFormat("pt-BR", {
         day: "2-digit",
         month: "2-digit",
-        year: "numeric",
+        year: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
       }).format(new Date(isoStr));
@@ -2027,9 +2048,7 @@ function AdminUsersTab({
     try {
       await deleteUserProfile(userToDelete.uid);
       toast.success(`Usuário ${userToDelete.name || "selecionado"} excluído com sucesso!`);
-      if (onUserDeleted) {
-        onUserDeleted(userToDelete.uid);
-      }
+      if (onUserDeleted) onUserDeleted(userToDelete.uid);
       setUserToDelete(null);
     } catch (err: any) {
       toast.error("Erro ao excluir usuário: " + (err?.message || "Tente novamente"));
@@ -2040,136 +2059,179 @@ function AdminUsersTab({
 
   const handleToggleStatus = async (targetUser: UserProfile) => {
     const newStatus = targetUser.status === "ativo" ? "inativo" : "ativo";
-    setUpdatingStatusUid(targetUser.uid);
+    setUpdatingUid(targetUser.uid);
     try {
       await toggleUserStatus(targetUser.uid, newStatus);
-      toast.success(
-        newStatus === "ativo"
-          ? `Usuário ${targetUser.name} reativado com sucesso!`
-          : `Usuário ${targetUser.name} marcado como inativo.`
-      );
-      if (onUserStatusChanged) {
-        onUserStatusChanged(targetUser.uid, newStatus);
-      }
+      toast.success(newStatus === "ativo" ? `${targetUser.name} reativado!` : `${targetUser.name} desativado.`);
+      if (onUserStatusChanged) onUserStatusChanged(targetUser.uid, newStatus);
     } catch (err: any) {
-      toast.error("Erro ao alterar status do usuário: " + (err?.message || "Tente novamente"));
+      toast.error("Erro ao alterar status: " + (err?.message || "Tente novamente"));
     } finally {
-      setUpdatingStatusUid(null);
+      setUpdatingUid(null);
     }
   };
 
+  const handleChangePayment = async (targetUser: UserProfile, newPayment: "ativo" | "pendente" | "cancelado") => {
+    setUpdatingUid(targetUser.uid);
+    try {
+      await updateUserPaymentStatus(targetUser.uid, newPayment, newPayment === "ativo" ? (targetUser.planName || "Mensal") : targetUser.planName);
+      const msgs: Record<string, string> = {
+        ativo: `Plano de ${targetUser.name} ativado! ✅`,
+        pendente: `${targetUser.name} marcado como Pendente.`,
+        cancelado: `Plano de ${targetUser.name} cancelado.`,
+      };
+      toast.success(msgs[newPayment]);
+      if (onPaymentStatusChanged) onPaymentStatusChanged(targetUser.uid, newPayment);
+    } catch (err: any) {
+      toast.error("Erro ao atualizar plano: " + (err?.message || "Tente novamente"));
+    } finally {
+      setUpdatingUid(null);
+    }
+  };
+
+  const paymentBadge = (status: UserProfile["paymentStatus"], role: string, email: string) => {
+    if (role === "admin" || isAdminEmail(email)) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-500/15 text-orange-400 border border-orange-500/30">
+          <ShieldCheck className="h-3.5 w-3.5" /> Admin
+        </span>
+      );
+    }
+    switch (status) {
+      case "ativo":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <BadgeCheck className="h-3.5 w-3.5" /> Ativo
+          </span>
+        );
+      case "cancelado":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/30">
+            <XCircle className="h-3.5 w-3.5" /> Cancelado
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+            <Hourglass className="h-3.5 w-3.5" /> Pendente
+          </span>
+        );
+    }
+  };
+
+  const tabDef: { id: typeof filterTab; label: string; count: number; color: string }[] = [
+    { id: "todos", label: "Todos", count: users.length, color: "text-foreground" },
+    { id: "ativos", label: "Ativos", count: activeSubscribers.length, color: "text-emerald-400" },
+    { id: "pendentes", label: "Pendentes", count: pendingSubscribers.length, color: "text-yellow-400" },
+    { id: "cancelados", label: "Cancelados", count: cancelledSubscribers.length, color: "text-red-400" },
+    { id: "admins", label: "Admins", count: adminUsers.length, color: "text-orange-400" },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Header com Boas-vindas e Ações */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold font-display text-foreground flex items-center gap-2.5">
             <Users className="h-7 w-7 text-primary" />
-            Usuários Cadastrados
+            Gerenciar Usuários
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Gerencie os seguidores e administradores cadastrados na plataforma Nostalgiando.
+            Assinantes, pendentes e administradores cadastrados na plataforma.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {/* Alternador de filtro: Apenas Ativos vs Todos */}
-          <div className="inline-flex items-center rounded-xl bg-secondary/40 p-1 border border-white/10 text-xs">
-            <button
-              onClick={() => setOnlyActive(true)}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                onlyActive
-                  ? "bg-primary text-black shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Apenas Ativos ({activeUsers.length})
-            </button>
-            <button
-              onClick={() => setOnlyActive(false)}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                !onlyActive
-                  ? "bg-primary text-black shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Todos ({users.length})
-            </button>
-          </div>
-
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-white/10 bg-secondary/50 text-foreground hover:bg-secondary transition-all text-xs font-semibold active:scale-95 disabled:opacity-50 cursor-pointer"
-            title="Recarregar dados do Firestore"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-primary" : ""}`} />
-            <span className="hidden sm:inline">{loading ? "Atualizando..." : "Atualizar"}</span>
-          </button>
-        </div>
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-white/10 bg-secondary/50 text-foreground hover:bg-secondary transition-all text-xs font-semibold active:scale-95 disabled:opacity-50 cursor-pointer"
+          title="Recarregar dados do Firestore"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-primary" : ""}`} />
+          <span>{loading ? "Atualizando..." : "Atualizar"}</span>
+        </button>
       </div>
 
       {/* Cards de Métricas */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              {onlyActive ? "Usuários Ativos" : "Total de Cadastros"}
-            </span>
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
-              <Users className="h-5 w-5" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Assinantes Ativos */}
+        <div className="rounded-2xl border border-emerald-500/20 bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Assinantes</span>
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-emerald-500/10 text-emerald-400">
+              <BadgeCheck className="h-4 w-4" />
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-3xl font-black text-foreground">{baseList.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {onlyActive ? "Contas ativas no Firestore" : "Total geral registrado"}
-            </p>
-          </div>
+          <div className="text-3xl font-black text-emerald-400">{activeSubscribers.length}</div>
+          <p className="text-[11px] text-muted-foreground mt-1">Com plano ativo</p>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Seguidores
-            </span>
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-500/10 text-blue-400">
-              <UserCheck className="h-5 w-5" />
+        {/* Pendentes */}
+        <div className="rounded-2xl border border-yellow-500/20 bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Pendentes</span>
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-yellow-500/10 text-yellow-400">
+              <Hourglass className="h-4 w-4" />
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-3xl font-black text-blue-400">{totalFollowers}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {onlyActive ? "Membros ativos" : "Total de seguidores"}
-            </p>
-          </div>
+          <div className="text-3xl font-black text-yellow-400">{pendingSubscribers.length}</div>
+          <p className="text-[11px] text-muted-foreground mt-1">Sem pagamento</p>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Administradores
-            </span>
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-orange-500/10 text-orange-400">
-              <ShieldCheck className="h-5 w-5" />
+        {/* Cancelados */}
+        <div className="rounded-2xl border border-red-500/20 bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Cancelados</span>
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-red-500/10 text-red-400">
+              <XCircle className="h-4 w-4" />
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-3xl font-black text-orange-400">{totalAdmins}</div>
-            <p className="text-xs text-muted-foreground mt-1">Com acesso master 2FA</p>
-          </div>
+          <div className="text-3xl font-black text-red-400">{cancelledSubscribers.length}</div>
+          <p className="text-[11px] text-muted-foreground mt-1">Plano cancelado</p>
         </div>
+
+        {/* Admins */}
+        <div className="rounded-2xl border border-orange-500/20 bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Admins</span>
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-orange-500/10 text-orange-400">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="text-3xl font-black text-orange-400">{adminUsers.length}</div>
+          <p className="text-[11px] text-muted-foreground mt-1">Acesso master</p>
+        </div>
+      </div>
+
+      {/* Tabs de filtro */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {tabDef.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setFilterTab(t.id)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              filterTab === t.id
+                ? "bg-primary text-black shadow-sm"
+                : "bg-secondary/40 text-muted-foreground hover:text-foreground border border-white/5"
+            }`}
+          >
+            {t.label}
+            <span className={`text-[10px] font-black ${filterTab === t.id ? "text-black/70" : t.color}`}>
+              {t.count}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Barra de Pesquisa */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Pesquisar usuário por nome, e-mail ou tipo..."
-          className="w-full h-12 rounded-2xl border border-white/10 bg-card pl-12 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+          placeholder="Buscar por nome, e-mail, WhatsApp ou plano..."
+          className="w-full h-11 rounded-2xl border border-white/10 bg-card pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
         />
       </div>
 
@@ -2177,14 +2239,14 @@ function AdminUsersTab({
       <div className="rounded-2xl border border-white/10 bg-card overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-secondary/40 border-b border-border/60 text-xs uppercase font-bold text-muted-foreground">
+            <thead className="bg-secondary/40 border-b border-border/60 text-[11px] uppercase font-bold text-muted-foreground">
               <tr>
-                <th className="px-5 py-4">Usuário</th>
-                <th className="px-5 py-4">Tipo</th>
-                <th className="px-5 py-4">Data de Cadastro</th>
-                <th className="px-5 py-4">Último Acesso</th>
-                <th className="px-5 py-4 text-center">Status</th>
-                <th className="px-5 py-4 text-right">Ações</th>
+                <th className="px-5 py-3.5">Usuário</th>
+                <th className="px-4 py-3.5">WhatsApp</th>
+                <th className="px-4 py-3.5">Plano / Login</th>
+                <th className="px-4 py-3.5">Último Acesso</th>
+                <th className="px-4 py-3.5 text-center">Assinatura</th>
+                <th className="px-4 py-3.5 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
@@ -2198,103 +2260,141 @@ function AdminUsersTab({
 
                   return (
                     <tr key={u.uid} className="hover:bg-secondary/20 transition-colors">
+                      {/* Usuário */}
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div
                             className={`grid h-10 w-10 place-items-center rounded-xl font-bold text-sm shrink-0 ${
                               isAdminUser
                                 ? "bg-gradient-to-br from-red-500 to-orange-600 text-white shadow-md shadow-orange-500/20"
-                                : "bg-secondary text-primary border border-white/5"
+                                : u.paymentStatus === "ativo"
+                                ? "bg-gradient-to-br from-emerald-600 to-teal-700 text-white"
+                                : u.paymentStatus === "cancelado"
+                                ? "bg-gradient-to-br from-red-900 to-red-800 text-red-300"
+                                : "bg-secondary text-muted-foreground border border-white/5"
                             }`}
                           >
                             {initial}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-bold text-foreground truncate flex items-center gap-2">
+                            <div className="font-bold text-foreground truncate flex items-center gap-2 text-sm">
                               <span>{u.name}</span>
                               {isMe && (
-                                <span className="text-[10px] font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 px-1.5 py-0.2 rounded">
+                                <span className="text-[10px] font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 px-1.5 py-0.5 rounded">
                                   Você
                                 </span>
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground truncate">
-                              {u.email || <span className="italic text-muted-foreground/60">Sem e-mail informado</span>}
+                              {u.email || <span className="italic text-muted-foreground/60">Sem e-mail</span>}
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-5 py-4">
-                        {isAdminUser ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-500/15 text-orange-400 border border-orange-500/30">
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            Admin Master
-                          </span>
+                      {/* WhatsApp */}
+                      <td className="px-4 py-4">
+                        {u.whatsapp ? (
+                          <a
+                            href={`https://wa.me/55${u.whatsapp.replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-mono transition-colors"
+                          >
+                            <Phone className="h-3 w-3 shrink-0" />
+                            {u.whatsapp}
+                          </a>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-secondary text-muted-foreground border border-white/5">
-                            <UserCheck className="h-3.5 w-3.5" />
-                            Seguidor
-                          </span>
+                          <span className="text-xs text-muted-foreground/50 italic">—</span>
                         )}
                       </td>
 
-                      <td className="px-5 py-4 text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDate(u.createdAt)}
+                      {/* Plano / Login */}
+                      <td className="px-4 py-4">
+                        <div className="space-y-0.5">
+                          {isAdminUser ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-orange-500/15 text-orange-400 border border-orange-500/30">
+                              <ShieldCheck className="h-3 w-3" /> Admin Master
+                            </span>
+                          ) : u.planName ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">
+                              <CreditCard className="h-3 w-3" /> {u.planName}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/60 italic">Sem plano</span>
+                          )}
+                          <div className="text-[10px] text-muted-foreground">
+                            Cadastro: {formatDate(u.createdAt)}
+                          </div>
+                        </div>
                       </td>
 
-                      <td className="px-5 py-4 text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDate(u.lastLogin)}
+                      {/* Último Acesso */}
+                      <td className="px-4 py-4">
+                        <div className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatDate(u.lastLogin)}
+                        </div>
                       </td>
 
-                      <td className="px-5 py-4 text-center">
-                        {u.status === "ativo" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            Ativo
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
-                            Inativo
-                          </span>
-                        )}
+                      {/* Badge Assinatura */}
+                      <td className="px-4 py-4 text-center">
+                        {paymentBadge(u.paymentStatus, u.role, u.email)}
                       </td>
 
-                      {/* Ações de gerenciamento */}
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      {/* Ações */}
+                      <td className="px-4 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           {isMe ? (
                             <span className="text-[11px] font-semibold text-muted-foreground/60 px-2 py-1">
                               Protegido
                             </span>
+                          ) : isAdminUser ? (
+                            <span className="text-[11px] font-semibold text-orange-400/60 px-2 py-1">
+                              Admin
+                            </span>
                           ) : (
                             <>
-                              {/* Botão de Alternar Status (Ativar / Desativar) */}
+                              {/* Botões de plano */}
+                              {u.paymentStatus !== "ativo" && (
+                                <button
+                                  onClick={() => handleChangePayment(u, "ativo")}
+                                  disabled={updatingUid === u.uid}
+                                  className="text-[11px] px-2.5 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer disabled:opacity-50 font-bold"
+                                  title="Ativar plano"
+                                >
+                                  {updatingUid === u.uid ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Ativar"}
+                                </button>
+                              )}
+                              {u.paymentStatus === "ativo" && (
+                                <button
+                                  onClick={() => handleChangePayment(u, "cancelado")}
+                                  disabled={updatingUid === u.uid}
+                                  className="text-[11px] px-2.5 py-1.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer disabled:opacity-50 font-bold"
+                                  title="Cancelar plano"
+                                >
+                                  {updatingUid === u.uid ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Cancelar"}
+                                </button>
+                              )}
+
+                              {/* Desativar / Ativar conta */}
                               <button
                                 onClick={() => handleToggleStatus(u)}
-                                disabled={updatingStatusUid === u.uid}
-                                className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                                disabled={updatingUid === u.uid}
+                                className={`text-[11px] px-2 py-1.5 rounded-xl border transition-all cursor-pointer disabled:opacity-50 ${
                                   u.status === "ativo"
                                     ? "border-white/10 bg-white/5 text-muted-foreground hover:bg-yellow-500/10 hover:text-yellow-400 hover:border-yellow-500/30"
                                     : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
                                 }`}
-                                title={u.status === "ativo" ? "Desativar acesso" : "Reativar usuário"}
+                                title={u.status === "ativo" ? "Desativar conta" : "Reativar conta"}
                               >
-                                {updatingStatusUid === u.uid ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : u.status === "ativo" ? (
-                                  "Desativar"
-                                ) : (
-                                  "Ativar"
-                                )}
+                                {u.status === "ativo" ? "Desativar" : "Ativar"}
                               </button>
 
-                              {/* Botão de Excluir Usuário */}
+                              {/* Excluir */}
                               <button
                                 onClick={() => setUserToDelete(u)}
                                 className="p-1.5 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-500/15 border border-transparent hover:border-red-500/30 transition-all cursor-pointer"
-                                title="Excluir usuário do Firestore"
+                                title="Excluir usuário"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -2318,9 +2418,7 @@ function AdminUsersTab({
                         <Users className="h-8 w-8 text-muted-foreground/40" />
                         <p className="font-semibold text-foreground">Nenhum usuário encontrado</p>
                         <p className="text-xs text-muted-foreground">
-                          {onlyActive
-                            ? "Não há usuários com status ativo para os filtros aplicados."
-                            : "Nenhum seguidor ou usuário cadastrado na base."}
+                          {searchTerm ? `Sem resultados para "${searchTerm}"` : "Nenhum usuário cadastrado nesta categoria."}
                         </p>
                       </div>
                     )}
@@ -2342,7 +2440,7 @@ function AdminUsersTab({
               </div>
               <div>
                 <h3 className="text-lg font-bold text-foreground">Excluir Usuário?</h3>
-                <p className="text-xs text-muted-foreground">Essa ação removerá o registro do Firestore.</p>
+                <p className="text-xs text-muted-foreground">Essa ação removerá o registro do Firestore permanentemente.</p>
               </div>
             </div>
 
@@ -2356,14 +2454,10 @@ function AdminUsersTab({
                 <span className="font-mono text-foreground">{userToDelete.email || "Sem e-mail cadastrado"}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Tipo:</span>
-                <span className="font-semibold capitalize text-primary">{userToDelete.role}</span>
+                <span className="text-muted-foreground">Assinatura:</span>
+                <span className="font-semibold capitalize text-primary">{userToDelete.paymentStatus}</span>
               </div>
             </div>
-
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              O documento deste usuário será deletado permanentemente do banco de dados.
-            </p>
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
@@ -2397,4 +2491,3 @@ function AdminUsersTab({
     </div>
   );
 }
-

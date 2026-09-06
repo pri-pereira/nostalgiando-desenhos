@@ -4,7 +4,11 @@ export interface UserProfile {
   uid: string;
   email: string;
   name: string;
+  whatsapp?: string;
   role: "admin" | "user";
+  paymentStatus: "ativo" | "pendente" | "cancelado";
+  planName?: string;
+  planActivatedAt?: string;
   createdAt: string;
   lastLogin: string;
   status: "ativo" | "inativo";
@@ -56,6 +60,10 @@ export async function createUserProfile(
     email: email.trim().toLowerCase(),
     name,
     role: isMasterAdmin ? "admin" : "user",
+    // Admins têm plano ativo automaticamente; novos usuários ficam pendentes
+    paymentStatus: isMasterAdmin ? "ativo" : "pendente",
+    planName: isMasterAdmin ? "Admin" : undefined,
+    planActivatedAt: isMasterAdmin ? new Date().toISOString() : undefined,
     createdAt: new Date().toISOString(),
     lastLogin: new Date().toISOString(),
     status: "ativo",
@@ -102,6 +110,18 @@ export async function ensureUserProfile(
       if (!data.status) {
         updatedFields.status = "ativo";
       }
+      // Garantir que admins sempre tenham paymentStatus=ativo
+      if (isMasterAdmin && data.paymentStatus !== "ativo") {
+        updatedFields.paymentStatus = "ativo";
+        updatedFields.planName = "Admin";
+        if (!data.planActivatedAt) {
+          updatedFields.planActivatedAt = new Date().toISOString();
+        }
+      }
+      // Inicializar paymentStatus se não existir
+      if (!data.paymentStatus) {
+        updatedFields.paymentStatus = isMasterAdmin ? "ativo" : "pendente";
+      }
 
       await updateDoc(userDocRef, updatedFields);
 
@@ -109,7 +129,11 @@ export async function ensureUserProfile(
         uid,
         email: (data.email || email).trim().toLowerCase(),
         name: data.name || customName || email.split("@")[0]?.replace(/[._-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) || "Usuário",
+        whatsapp: data.whatsapp || undefined,
         role: isMasterAdmin ? "admin" : (data.role as "admin" | "user" || "user"),
+        paymentStatus: (isMasterAdmin ? "ativo" : (data.paymentStatus || "pendente")) as "ativo" | "pendente" | "cancelado",
+        planName: data.planName || (isMasterAdmin ? "Admin" : undefined),
+        planActivatedAt: data.planActivatedAt || undefined,
         createdAt: data.createdAt || new Date().toISOString(),
         lastLogin: new Date().toISOString(),
         status: (data.status as "ativo" | "inativo") || "ativo",
@@ -163,7 +187,41 @@ export async function toggleUserStatus(uid: string, status: "ativo" | "inativo")
 }
 
 /**
+ * Atualiza o status de assinatura/pagamento do usuário
+ */
+export async function updateUserPaymentStatus(
+  uid: string,
+  paymentStatus: "ativo" | "pendente" | "cancelado",
+  planName?: string
+): Promise<void> {
+  if (!db) return;
+  try {
+    const fields: Record<string, any> = { paymentStatus };
+    if (planName) fields.planName = planName;
+    if (paymentStatus === "ativo") fields.planActivatedAt = new Date().toISOString();
+    await updateDoc(doc(db, USERS_COLLECTION, uid), fields);
+  } catch (err) {
+    console.error("Erro ao atualizar status de pagamento:", err);
+    throw err;
+  }
+}
+
+/**
+ * Atualiza o WhatsApp do usuário
+ */
+export async function updateUserWhatsapp(uid: string, whatsapp: string): Promise<void> {
+  if (!db) return;
+  try {
+    await updateDoc(doc(db, USERS_COLLECTION, uid), { whatsapp: whatsapp.trim() });
+  } catch (err) {
+    console.warn("Aviso ao atualizar WhatsApp:", err);
+    throw err;
+  }
+}
+
+/**
  * Busca todos os usuários cadastrados (Apenas acessível pelo Admin)
+ * Deduplica por e-mail, priorizando o registro com último acesso mais recente.
  */
 export async function getAllUsers(): Promise<UserProfile[]> {
   if (!db) return [];
@@ -171,18 +229,43 @@ export async function getAllUsers(): Promise<UserProfile[]> {
     const snapshot = await getDocs(collection(db, USERS_COLLECTION));
     if (snapshot.empty) return [];
 
-    return snapshot.docs.map((d) => {
+    const raw: UserProfile[] = snapshot.docs.map((d) => {
       const data = d.data();
       return {
         uid: d.id,
         email: data.email || "",
         name: data.name || (data.email ? data.email.split("@")[0] : "Nostálgico"),
+        whatsapp: data.whatsapp || undefined,
         role: (data.role as "admin" | "user") || "user",
+        paymentStatus: (data.paymentStatus as "ativo" | "pendente" | "cancelado") || "pendente",
+        planName: data.planName || undefined,
+        planActivatedAt: data.planActivatedAt || undefined,
         createdAt: data.createdAt || new Date().toISOString(),
         lastLogin: data.lastLogin || data.createdAt || new Date().toISOString(),
         status: (data.status as "ativo" | "inativo") || "ativo",
       };
     });
+
+    // Deduplicar por e-mail: manter o registro com último login mais recente
+    const emailMap = new Map<string, UserProfile>();
+    for (const u of raw) {
+      const key = (u.email || u.uid).toLowerCase().trim();
+      if (!emailMap.has(key)) {
+        emailMap.set(key, u);
+      } else {
+        const existing = emailMap.get(key)!;
+        const existingTs = new Date(existing.lastLogin).getTime();
+        const newTs = new Date(u.lastLogin).getTime();
+        // Prefere dados com paymentStatus explícito e login mais recente
+        if (newTs > existingTs || (u.paymentStatus !== "pendente" && existing.paymentStatus === "pendente")) {
+          emailMap.set(key, u);
+        }
+      }
+    }
+
+    return Array.from(emailMap.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   } catch (err) {
     console.error("Erro ao buscar usuários do Firestore:", err);
     return [];
