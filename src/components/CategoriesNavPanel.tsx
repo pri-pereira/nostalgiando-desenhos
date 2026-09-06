@@ -15,7 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { CATEGORIES, type Show } from "@/data/shows";
-import type { WatchHistoryItem } from "@/lib/watchHistory";
+import { formatTime, type WatchHistoryItem } from "@/lib/watchHistory";
 
 interface CategoriesNavPanelProps {
   currentShowSlug?: string;
@@ -229,7 +229,8 @@ export function CategoriesNavPanel({
                               {s.year && <span>{s.year}</span>}
                               {lastWatched ? (
                                 <span className="text-amber-400 font-semibold truncate">
-                                  • Parou no Ep. {lastWatched.episodeIndex + 1}
+                                  • Ep. {lastWatched.episodeIndex + 1}
+                                  {lastWatched.timestamp > 5 ? ` (${formatTime(lastWatched.timestamp)})` : ""}
                                 </span>
                               ) : (
                                 <span>• #{idx + 1}</span>
@@ -238,6 +239,16 @@ export function CategoriesNavPanel({
                           </div>
 
                           <Play className="h-3 w-3 text-muted-foreground shrink-0" />
+
+                          {/* Mini barra de progresso no card do desenho */}
+                          {lastWatched && lastWatched.progressPercent > 3 && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10 overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-primary to-amber-500"
+                                style={{ width: `${Math.min(100, lastWatched.progressPercent)}%` }}
+                              />
+                            </div>
+                          )}
                         </Link>
                       );
                     })

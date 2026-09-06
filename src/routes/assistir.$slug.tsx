@@ -25,11 +25,16 @@ import { getShow, getStaticShow, getCachedShows, getAllShows, type Episode, type
 import { useAuth } from "@/lib/authContext";
 import {
   saveWatchProgress,
+  getEpisodeProgress,
+  getAllEpisodesProgressForShow,
+  resetEpisodeProgress,
+  formatTime,
   getWatchedEpisodes,
   markEpisodeWatched,
   getLastWatchedEpisodeIndex,
   getWatchHistory,
   type WatchHistoryItem,
+  type EpisodeProgress,
 } from "@/lib/watchHistory";
 import { trackShowView } from "@/lib/trendingShows";
 
@@ -116,6 +121,14 @@ function Watch() {
   const [watchedEpisodes, setWatchedEpisodes] = useState<string[]>([]);
   const [savedLastIndex, setSavedLastIndex] = useState<number | null>(null);
   const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>(() => getWatchHistory(user?.uid));
+  const [episodesProgressMap, setEpisodesProgressMap] = useState<Record<string, EpisodeProgress>>({});
+  const [resumeBanner, setResumeBanner] = useState<{
+    timestamp: number;
+    formatted: string;
+    percent: number;
+  } | null>(null);
+  const lastSavedTimeRef = useRef<number>(0);
+  const hasRestoredTimeRef = useRef<string | null>(null);
 
   // Escuta atualizações do histórico de episódios
   useEffect(() => {
@@ -133,6 +146,27 @@ function Watch() {
       window.removeEventListener("storage", handleHistUpdate);
     };
   }, [user?.uid]);
+
+  // Escuta e carrega progressos granulares dos episódios
+  useEffect(() => {
+    if (show?.slug) {
+      const progressMap = getAllEpisodesProgressForShow(user?.uid, show.slug);
+      setEpisodesProgressMap(progressMap);
+    }
+
+    const handleEpProgressUpdate = (e: any) => {
+      if (e?.detail?.showSlug === show?.slug && e.detail.episodeId && e.detail.progress) {
+        setEpisodesProgressMap((prev) => ({
+          ...prev,
+          [e.detail.episodeId]: e.detail.progress,
+        }));
+      }
+    };
+    window.addEventListener("episode_progress_updated", handleEpProgressUpdate);
+    return () => {
+      window.removeEventListener("episode_progress_updated", handleEpProgressUpdate);
+    };
+  }, [show?.slug, user?.uid]);
 
   // Carrega episódios assistidos e restaura onde o usuário parou
   useEffect(() => {
@@ -336,9 +370,21 @@ function Watch() {
     videoUrl: ""
   }));
 
-  // Salva o progresso e onde o usuário parou sempre que o episódio mudar
+  // Sincroniza o episódio atual e restaura o ponto de onde o usuário parou
   useEffect(() => {
     if (show && episode && episode.id && episode.id !== "empty") {
+      hasRestoredTimeRef.current = null;
+      lastSavedTimeRef.current = 0;
+
+      // Recupera o timestamp salvo se existir
+      const existingProg =
+        episodesProgressMap[episode.id] ||
+        getEpisodeProgress(user?.uid, show.slug, episode.id);
+
+      const currentTimestamp = existingProg ? existingProg.timestamp : 0;
+      const currentDuration =
+        existingProg && existingProg.duration > 0 ? existingProg.duration : 1200;
+
       saveWatchProgress(user?.uid, {
         showSlug: show.slug,
         showTitle: show.title,
@@ -346,8 +392,19 @@ function Watch() {
         episodeId: episode.id,
         episodeIndex: current,
         episodeTitle: episode.title,
-        duration: 1200,
+        timestamp: currentTimestamp,
+        duration: currentDuration,
       });
+
+      if (existingProg && existingProg.timestamp > 5 && existingProg.progressPercent < 90) {
+        setResumeBanner({
+          timestamp: existingProg.timestamp,
+          formatted: formatTime(existingProg.timestamp),
+          percent: existingProg.progressPercent,
+        });
+      } else {
+        setResumeBanner(null);
+      }
 
       const watched = getWatchedEpisodes(user?.uid, show.slug);
       setWatchedEpisodes(watched);
@@ -355,6 +412,109 @@ function Watch() {
       setWatchHistory(hist);
     }
   }, [show?.slug, current, episode?.id, user?.uid]);
+
+  // Restaura automaticamente a posição exata do vídeo ao carregar os metadados (estilo Netflix)
+  const handleLoadedMetadata = () => {
+    if (!videoRef.current || !show || !episode || episode.id === "empty") return;
+    const existingProg =
+      episodesProgressMap[episode.id] ||
+      getEpisodeProgress(user?.uid, show.slug, episode.id);
+
+    if (existingProg && existingProg.timestamp > 5 && existingProg.progressPercent < 92) {
+      if (hasRestoredTimeRef.current !== episode.id) {
+        hasRestoredTimeRef.current = episode.id;
+        videoRef.current.currentTime = existingProg.timestamp;
+        setResumeBanner({
+          timestamp: existingProg.timestamp,
+          formatted: formatTime(existingProg.timestamp),
+          percent: existingProg.progressPercent,
+        });
+
+        // Banner auto-dismiss após 6 segundos
+        setTimeout(() => {
+          setResumeBanner((prev) => (prev?.timestamp === existingProg.timestamp ? null : prev));
+        }, 6000);
+      }
+    }
+  };
+
+  // Salva o ponto exato a cada 3 segundos de reprodução contínua
+  const handleTimeUpdate = () => {
+    if (!videoRef.current || !show || !episode || episode.id === "empty") return;
+    const currentSec = Math.floor(videoRef.current.currentTime);
+    const totalDuration = Math.floor(videoRef.current.duration) || 1200;
+
+    if (Math.abs(currentSec - lastSavedTimeRef.current) >= 3) {
+      lastSavedTimeRef.current = currentSec;
+      saveWatchProgress(user?.uid, {
+        showSlug: show.slug,
+        showTitle: show.title,
+        showPoster: show.poster,
+        episodeId: episode.id,
+        episodeIndex: current,
+        episodeTitle: episode.title,
+        timestamp: currentSec,
+        duration: totalDuration,
+      });
+    }
+  };
+
+  // Salva imediatamente ao pausar ou ao buscar (seek)
+  const handleVideoPause = () => {
+    if (!videoRef.current || !show || !episode || episode.id === "empty") return;
+    const currentSec = Math.floor(videoRef.current.currentTime);
+    const totalDuration = Math.floor(videoRef.current.duration) || 1200;
+    saveWatchProgress(user?.uid, {
+      showSlug: show.slug,
+      showTitle: show.title,
+      showPoster: show.poster,
+      episodeId: episode.id,
+      episodeIndex: current,
+      episodeTitle: episode.title,
+      timestamp: currentSec,
+      duration: totalDuration,
+    });
+  };
+
+  // Ao finalizar o vídeo, marca como assistido
+  const handleVideoEnded = () => {
+    if (!show || !episode || episode.id === "empty") return;
+    const totalDuration = videoRef.current ? Math.floor(videoRef.current.duration) : 1200;
+    markEpisodeWatched(user?.uid, show.slug, episode.id);
+    saveWatchProgress(user?.uid, {
+      showSlug: show.slug,
+      showTitle: show.title,
+      showPoster: show.poster,
+      episodeId: episode.id,
+      episodeIndex: current,
+      episodeTitle: episode.title,
+      timestamp: totalDuration,
+      duration: totalDuration,
+    });
+    setResumeBanner(null);
+  };
+
+  // Recomeçar o episódio do início (00:00)
+  const handleRestartEpisode = () => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(() => {});
+    }
+    if (show && episode) {
+      resetEpisodeProgress(user?.uid, show.slug, episode.id);
+      saveWatchProgress(user?.uid, {
+        showSlug: show.slug,
+        showTitle: show.title,
+        showPoster: show.poster,
+        episodeId: episode.id,
+        episodeIndex: current,
+        episodeTitle: episode.title,
+        timestamp: 0,
+        duration: videoRef.current ? Math.floor(videoRef.current.duration) : 1200,
+      });
+    }
+    setResumeBanner(null);
+  };
 
   const related = useMemo(() => {
     const currentCategory = show.category;
@@ -455,6 +615,12 @@ function Watch() {
                       controls
                       autoPlay
                       playsInline
+                      onLoadedMetadata={handleLoadedMetadata}
+                      onCanPlay={handleLoadedMetadata}
+                      onTimeUpdate={handleTimeUpdate}
+                      onPause={handleVideoPause}
+                      onSeeked={handleVideoPause}
+                      onEnded={handleVideoEnded}
                       className="absolute inset-0 h-full w-full object-contain bg-black"
                     />
                   ) : (
@@ -466,6 +632,43 @@ function Watch() {
                       allowFullScreen
                       className="absolute inset-0 h-full w-full border-0 bg-black"
                     />
+                  )}
+
+                  {/* Banner Flutuante Estilo Netflix: Continuando de onde parou */}
+                  {resumeBanner && (
+                    <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between gap-3 rounded-2xl bg-black/90 backdrop-blur-md border border-primary/40 px-3.5 py-2.5 text-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/20 text-primary border border-primary/30 shrink-0">
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </span>
+                        <div className="min-w-0 text-left">
+                          <p className="text-xs font-bold truncate">
+                            Continuando de onde você parou:{" "}
+                            <span className="text-primary font-mono">{resumeBanner.formatted}</span> ({resumeBanner.percent}%)
+                          </p>
+                          <p className="text-[10px] text-muted-foreground hidden sm:block">
+                            Posição exata restaurada automaticamente estilo Netflix
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={handleRestartEpisode}
+                          className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                          title="Reiniciar este episódio do minuto 00:00"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          <span>Do início</span>
+                        </button>
+                        <button
+                          onClick={() => setResumeBanner(null)}
+                          className="text-white/60 hover:text-white text-xs px-1.5 py-1 cursor-pointer"
+                          title="Fechar aviso"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
                   )}
 
                   {showPaywall && (
@@ -578,16 +781,27 @@ function Watch() {
                   episodesList.map((epItem, index) => {
                     const isActive = index === current;
                     const isWatched = watchedEpisodes.includes(epItem.id);
+                    const epProg = episodesProgressMap[epItem.id];
+                    const hasProgress = epProg && epProg.timestamp > 5 && epProg.progressPercent < 90;
+
                     return (
                       <button
                         key={epItem.id}
                         onClick={() => setCurrent(index)}
-                        className={`group relative flex items-start gap-2.5 rounded-xl border p-2.5 text-left transition-all cursor-pointer ${
-                          isActive ? "border-primary bg-primary/15 shadow-sm" : "border-border/70 bg-secondary/30 hover:bg-secondary/60"
+                        className={`group relative flex items-start gap-2.5 rounded-xl border p-2.5 text-left transition-all cursor-pointer overflow-hidden ${
+                          isActive
+                            ? "border-primary bg-primary/15 shadow-sm"
+                            : "border-border/70 bg-secondary/30 hover:bg-secondary/60"
                         }`}
                       >
                         <div className="min-w-0 flex-1">
-                          <span className={`block truncate font-bold text-xs ${isActive ? "text-primary" : "text-foreground"}`}>{epItem.title}</span>
+                          <span
+                            className={`block truncate font-bold text-xs ${
+                              isActive ? "text-primary" : "text-foreground"
+                            }`}
+                          >
+                            {epItem.title}
+                          </span>
                           <div className="mt-1 flex items-center justify-between text-[10px]">
                             <span className="font-semibold text-muted-foreground">{epItem.duration}</span>
                             <div className="flex items-center gap-1">
@@ -596,10 +810,29 @@ function Watch() {
                                   <CheckCircle2 className="h-2.5 w-2.5" /> Assistido
                                 </span>
                               )}
-                              {isActive && <span className="font-bold text-primary animate-pulse text-[10px]">Assistindo</span>}
+                              {hasProgress && !isActive && (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.2 rounded border border-amber-500/30 font-mono">
+                                  <Clock className="h-2.5 w-2.5" /> {formatTime(epProg.timestamp)} ({epProg.progressPercent}%)
+                                </span>
+                              )}
+                              {isActive && (
+                                <span className="font-bold text-primary animate-pulse text-[10px]">
+                                  Assistindo
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
+
+                        {/* Barra de Progresso Vermelha/Âmbar estilo Netflix na parte inferior */}
+                        {epProg && epProg.progressPercent > 3 && (
+                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+                            <div
+                              className="h-full bg-gradient-to-r from-primary to-amber-500 transition-all duration-300"
+                              style={{ width: `${Math.min(100, epProg.progressPercent)}%` }}
+                            />
+                          </div>
+                        )}
                       </button>
                     );
                   })

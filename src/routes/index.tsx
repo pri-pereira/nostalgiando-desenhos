@@ -6,7 +6,7 @@ import { ShelfCarousel } from "@/components/ShelfCarousel";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { shelves, CATEGORIES, getCachedShows, getAllShows, type Show } from "@/data/shows";
 import { useAuth } from "@/lib/authContext";
-import { getWatchHistory, type WatchHistoryItem } from "@/lib/watchHistory";
+import { getWatchHistory, formatTime, type WatchHistoryItem } from "@/lib/watchHistory";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -205,8 +205,8 @@ function Home() {
                       <span className="text-[11px] font-bold text-primary flex items-center gap-1">
                         <RotateCcw className="h-3 w-3" /> Continuar
                       </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {item.progressPercent}% assistido
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {item.timestamp > 0 ? `Parou em ${formatTime(item.timestamp)}` : `${item.progressPercent}%`}
                       </span>
                     </div>
                   </div>
