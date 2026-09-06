@@ -148,7 +148,7 @@ function Home() {
 
         {history.length > 0 && (
           <section className="mb-10 sm:mb-14">
-            <div className="flex items-center justify-between gap-3 mb-4 px-1">
+            <div className="flex items-center justify-between gap-3 mb-5 px-1">
               <div className="flex items-center gap-2.5">
                 <div className="grid h-8 w-8 place-items-center rounded-xl bg-primary/20 text-primary border border-primary/30">
                   <Clock className="h-4 w-4" />
@@ -162,55 +162,53 @@ function Home() {
               </div>
             </div>
 
-            <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 [scrollbar-width:thin]">
-              {history.map((item) => (
-                <div
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              {history.slice(0, 4).map((item) => (
+                <Link
                   key={item.showSlug}
-                  className="group relative flex-none w-[230px] sm:w-[270px] rounded-2xl overflow-hidden border border-white/10 bg-card hover:border-primary/50 transition-all duration-300 hover:shadow-glow hover:-translate-y-1"
+                  to="/assistir/$slug"
+                  params={{ slug: item.showSlug }}
+                  className="group relative flex items-center gap-3 rounded-2xl border border-white/8 bg-card/60 hover:bg-card backdrop-blur-sm px-3 py-3 transition-all duration-200 hover:border-primary/35 hover:shadow-[0_0_20px_rgba(217,119,6,0.08)] active:scale-[0.98] overflow-hidden"
                 >
-                  <Link
-                    to="/assistir/$slug"
-                    params={{ slug: item.showSlug }}
-                    className="block relative aspect-video w-full bg-black overflow-hidden"
-                  >
+                  {/* Poster Miniatura */}
+                  <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black shadow-sm">
                     <img
                       src={item.showPoster}
                       alt={item.showTitle}
-                      className="h-full w-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-500"
+                      className="h-full w-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-
-                    <div className="absolute inset-0 grid place-items-center opacity-90 group-hover:opacity-100 transition-opacity">
-                      <span className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-glow group-hover:scale-110 transition-transform">
-                        <Play className="h-5 w-5 fill-current translate-x-0.5" />
-                      </span>
+                    {/* Play overlay ao hover */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <Play className="h-4 w-4 text-white fill-white" />
                     </div>
+                  </div>
 
-                    <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-secondary/80">
-                      <div
-                        className="h-full bg-gradient-to-r from-primary to-amber-500 rounded-r-full"
-                        style={{ width: `${Math.max(15, item.progressPercent)}%` }}
-                      />
-                    </div>
-                  </Link>
-
-                  <div className="p-3.5">
-                    <h3 className="font-display text-sm sm:text-base font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                  {/* Informações */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground truncate group-hover:text-primary transition-colors leading-tight">
                       {item.showTitle}
-                    </h3>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {item.episodeTitle || `Episódio ${item.episodeIndex + 1}`}
                     </p>
-                    <div className="mt-2.5 flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-primary flex items-center gap-1">
-                        <RotateCcw className="h-3 w-3" /> Continuar
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        {item.timestamp > 0 ? `Parou em ${formatTime(item.timestamp)}` : `${item.progressPercent}%`}
+                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                      Ep. {item.episodeIndex + 1} · {item.episodeTitle || `Episódio ${item.episodeIndex + 1}`}
+                    </p>
+
+                    {/* Barra de progresso minimalista */}
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="flex-1 h-[3px] rounded-full bg-white/10 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-primary to-amber-400 transition-all"
+                          style={{ width: `${Math.max(8, item.progressPercent)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-mono text-primary/80 shrink-0 tabular-nums">
+                        {item.timestamp > 0 ? formatTime(item.timestamp) : `${item.progressPercent}%`}
                       </span>
                     </div>
                   </div>
-                </div>
+
+                  {/* Ícone de continuar */}
+                  <RotateCcw className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary shrink-0 transition-colors" />
+                </Link>
               ))}
             </div>
           </section>

@@ -17,6 +17,8 @@ import {
   Lock,
   CheckCircle2,
   RotateCcw,
+  Search,
+  X,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PosterCard } from "@/components/PosterCard";
@@ -127,6 +129,7 @@ function Watch() {
     formatted: string;
     percent: number;
   } | null>(null);
+  const [epSearch, setEpSearch] = useState("");
   const lastSavedTimeRef = useRef<number>(0);
   const hasRestoredTimeRef = useRef<string | null>(null);
 
@@ -750,93 +753,150 @@ function Watch() {
 
           {/* COLUNA LATERAL DIREITA: TODOS OS EPISÓDIOS DO TÍTULO ATUAL */}
           <div className="lg:col-span-3 xl:col-span-3 order-3">
-            <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-card sticky top-20">
-              <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                <div className="flex items-center gap-2">
-                  <Film className="h-4 w-4 text-primary" />
-                  <h2 className="font-display text-sm font-bold text-foreground">Todos os Episódios</h2>
+            <div className="rounded-3xl border border-border/80 bg-card shadow-card sticky top-20 overflow-hidden">
+              {/* Header do painel */}
+              <div className="px-4 pt-4 pb-3 border-b border-border/50">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Film className="h-4 w-4 text-primary" />
+                    <h2 className="font-display text-sm font-bold text-foreground">Episódios</h2>
+                  </div>
+                  <span className="text-[11px] font-bold text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded-full border border-border/40">
+                    {episodesList.length} ep.
+                  </span>
                 </div>
-                <span className="text-[11px] font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                  {episodesList.length}
-                </span>
+
+                {/* Campo de busca — aparece sempre se tiver mais de 8 episódios */}
+                {episodesList.length > 8 && (
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <input
+                      type="text"
+                      value={epSearch}
+                      onChange={(e) => setEpSearch(e.target.value)}
+                      placeholder="Buscar episódio..."
+                      className="w-full h-8 rounded-xl bg-secondary/50 border border-border/50 pl-8 pr-7 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/40 focus:bg-secondary/70 transition-all"
+                    />
+                    {epSearch && (
+                      <button
+                        onClick={() => setEpSearch("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="mt-3 flex flex-col gap-2 max-h-[calc(100vh-220px)] overflow-y-auto pr-1 [scrollbar-width:thin]">
+
+              {/* Lista de episódios */}
+              <div className="max-h-[calc(100vh-260px)] overflow-y-auto [scrollbar-width:thin] [scrollbar-color:hsl(var(--border))_transparent]">
                 {isLoading ? (
-                  <div className="space-y-2.5 p-2">
-                    {[1, 2, 3, 4].map((n) => (
-                      <div key={n} className="animate-pulse rounded-2xl border border-border/40 bg-secondary/20 p-3">
-                        <div className="h-4 w-3/4 rounded bg-white/10 mb-2" />
-                        <div className="h-3 w-1/3 rounded bg-white/5" />
+                  <div className="p-3 space-y-1.5">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <div key={n} className="animate-pulse flex items-center gap-2.5 px-2 py-2.5 rounded-xl">
+                        <div className="h-5 w-7 rounded bg-white/8 shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 w-3/4 rounded bg-white/10" />
+                          <div className="h-2 w-1/4 rounded bg-white/6" />
+                        </div>
                       </div>
                     ))}
-                    <p className="text-center text-[11px] text-muted-foreground pt-1">
+                    <p className="text-center text-[11px] text-muted-foreground py-2">
                       Buscando episódios no acervo...
                     </p>
                   </div>
                 ) : episodesList.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-muted-foreground">
+                  <div className="p-8 text-center text-xs text-muted-foreground">
                     Nenhum episódio encontrado.
                   </div>
-                ) : (
-                  episodesList.map((epItem, index) => {
-                    const isActive = index === current;
-                    const isWatched = watchedEpisodes.includes(epItem.id);
-                    const epProg = episodesProgressMap[epItem.id];
-                    const hasProgress = epProg && epProg.timestamp > 5 && epProg.progressPercent < 90;
+                ) : (() => {
+                  // Filtrar com base na busca
+                  const term = epSearch.trim().toLowerCase();
+                  const filtered = term
+                    ? episodesList
+                        .map((ep, idx) => ({ ep, idx }))
+                        .filter(({ ep, idx }) =>
+                          ep.title.toLowerCase().includes(term) ||
+                          String(idx + 1).includes(term)
+                        )
+                    : episodesList.map((ep, idx) => ({ ep, idx }));
 
+                  if (filtered.length === 0) {
                     return (
-                      <button
-                        key={epItem.id}
-                        onClick={() => setCurrent(index)}
-                        className={`group relative flex items-start gap-2.5 rounded-xl border p-2.5 text-left transition-all cursor-pointer overflow-hidden ${
-                          isActive
-                            ? "border-primary bg-primary/15 shadow-sm"
-                            : "border-border/70 bg-secondary/30 hover:bg-secondary/60"
-                        }`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <span
-                            className={`block truncate font-bold text-xs ${
-                              isActive ? "text-primary" : "text-foreground"
+                      <div className="p-6 text-center text-xs text-muted-foreground">
+                        Nenhum episódio encontrado para "{epSearch}".
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="p-2 space-y-0.5">
+                      {filtered.map(({ ep: epItem, idx: index }) => {
+                        const isActive = index === current;
+                        const isWatched = watchedEpisodes.includes(epItem.id);
+                        const epProg = episodesProgressMap[epItem.id];
+                        const hasProgress = epProg && epProg.timestamp > 5 && epProg.progressPercent < 92;
+
+                        return (
+                          <button
+                            key={epItem.id}
+                            onClick={() => { setCurrent(index); setEpSearch(""); }}
+                            className={`group relative w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all cursor-pointer overflow-hidden ${
+                              isActive
+                                ? "bg-primary/15 text-primary"
+                                : "text-foreground/80 hover:bg-secondary/60 hover:text-foreground"
                             }`}
                           >
-                            {epItem.title}
-                          </span>
-                          <div className="mt-1 flex items-center justify-between text-[10px]">
-                            <span className="font-semibold text-muted-foreground">{epItem.duration}</span>
-                            <div className="flex items-center gap-1">
-                              {isWatched && !isActive && (
-                                <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-500/15 px-1.5 py-0.2 rounded border border-emerald-500/30">
-                                  <CheckCircle2 className="h-2.5 w-2.5" /> Assistido
-                                </span>
-                              )}
-                              {hasProgress && !isActive && (
-                                <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.2 rounded border border-amber-500/30 font-mono">
-                                  <Clock className="h-2.5 w-2.5" /> {formatTime(epProg.timestamp)} ({epProg.progressPercent}%)
-                                </span>
-                              )}
-                              {isActive && (
-                                <span className="font-bold text-primary animate-pulse text-[10px]">
-                                  Assistindo
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                            {/* Número do episódio */}
+                            <span className={`shrink-0 w-7 text-center text-[10px] font-black tabular-nums ${
+                              isActive ? "text-primary" : "text-muted-foreground/60"
+                            }`}>
+                              {index + 1}
+                            </span>
 
-                        {/* Barra de Progresso Vermelha/Âmbar estilo Netflix na parte inferior */}
-                        {epProg && epProg.progressPercent > 3 && (
-                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
-                            <div
-                              className="h-full bg-gradient-to-r from-primary to-amber-500 transition-all duration-300"
-                              style={{ width: `${Math.min(100, epProg.progressPercent)}%` }}
-                            />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
+                            {/* Título e info */}
+                            <div className="flex-1 min-w-0">
+                              <span className={`block truncate text-xs font-semibold leading-tight ${
+                                isActive ? "text-primary" : "text-foreground"
+                              }`}>
+                                {epItem.title}
+                              </span>
+                              {/* Barra de progresso inline + duration */}
+                              <div className="flex items-center gap-2 mt-1">
+                                {hasProgress ? (
+                                  <>
+                                    <div className="flex-1 h-[3px] rounded-full bg-white/10 overflow-hidden">
+                                      <div
+                                        className="h-full bg-gradient-to-r from-primary to-amber-400"
+                                        style={{ width: `${epProg.progressPercent}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-[9px] font-mono text-primary/70 shrink-0 tabular-nums">
+                                      {formatTime(epProg.timestamp)}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="text-[9px] text-muted-foreground/50">
+                                    {epItem.duration !== "--:--" ? epItem.duration : ""}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Indicadores de status */}
+                            {isActive && (
+                              <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                            )}
+                            {isWatched && !isActive && (
+                              <CheckCircle2 className="shrink-0 h-3 w-3 text-emerald-500/70" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
