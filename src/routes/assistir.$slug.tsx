@@ -16,9 +16,11 @@ import {
   LogIn,
   Lock,
   CheckCircle2,
+  RotateCcw,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PosterCard } from "@/components/PosterCard";
+import { CategoriesNavPanel } from "@/components/CategoriesNavPanel";
 import { getShow, getStaticShow, getCachedShows, getAllShows, type Episode, type Show } from "@/data/shows";
 import { useAuth } from "@/lib/authContext";
 import {
@@ -26,6 +28,8 @@ import {
   getWatchedEpisodes,
   markEpisodeWatched,
   getLastWatchedEpisodeIndex,
+  getWatchHistory,
+  type WatchHistoryItem,
 } from "@/lib/watchHistory";
 import { trackShowView } from "@/lib/trendingShows";
 
@@ -110,6 +114,25 @@ function Watch() {
   const [copied, setCopied] = useState(false);
   const [isPlayingSimulated, setIsPlayingSimulated] = useState(false);
   const [watchedEpisodes, setWatchedEpisodes] = useState<string[]>([]);
+  const [savedLastIndex, setSavedLastIndex] = useState<number | null>(null);
+  const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>(() => getWatchHistory(user?.uid));
+
+  // Escuta atualizações do histórico de episódios
+  useEffect(() => {
+    const handleHistUpdate = (e: any) => {
+      if (e?.detail && Array.isArray(e.detail)) {
+        setWatchHistory(e.detail);
+      } else {
+        setWatchHistory(getWatchHistory(user?.uid));
+      }
+    };
+    window.addEventListener("watch_history_updated", handleHistUpdate);
+    window.addEventListener("storage", handleHistUpdate);
+    return () => {
+      window.removeEventListener("watch_history_updated", handleHistUpdate);
+      window.removeEventListener("storage", handleHistUpdate);
+    };
+  }, [user?.uid]);
 
   // Carrega episódios assistidos e restaura onde o usuário parou
   useEffect(() => {
@@ -119,11 +142,12 @@ function Watch() {
       setWatchedEpisodes(watched);
 
       const lastIndex = getLastWatchedEpisodeIndex(user?.uid, show.slug);
+      setSavedLastIndex(lastIndex);
       if (lastIndex !== null && lastIndex >= 0) {
         setCurrent(lastIndex);
       }
     }
-  }, [show, user]);
+  }, [show?.slug, user?.uid]);
 
   // Paywall: 40 segundos para usuários não logados
   const [showPaywall, setShowPaywall] = useState(false);
@@ -311,6 +335,27 @@ function Watch() {
     duration: "--:--",
     videoUrl: ""
   }));
+
+  // Salva o progresso e onde o usuário parou sempre que o episódio mudar
+  useEffect(() => {
+    if (show && episode && episode.id && episode.id !== "empty") {
+      saveWatchProgress(user?.uid, {
+        showSlug: show.slug,
+        showTitle: show.title,
+        showPoster: show.poster,
+        episodeId: episode.id,
+        episodeIndex: current,
+        episodeTitle: episode.title,
+        duration: 1200,
+      });
+
+      const watched = getWatchedEpisodes(user?.uid, show.slug);
+      setWatchedEpisodes(watched);
+      const hist = getWatchHistory(user?.uid);
+      setWatchHistory(hist);
+    }
+  }, [show?.slug, current, episode?.id, user?.uid]);
+
   const related = useMemo(() => {
     const currentCategory = show.category;
     const sameCat = allShows.filter((s) => s.slug !== show.slug && s.category === currentCategory);
@@ -341,21 +386,50 @@ function Watch() {
   };
 
   return (
-    <div className="min-h-screen bg-background pt-28 pb-16 sm:pt-28">
+    <div className="min-h-screen bg-background pt-20 pb-16 sm:pt-24">
       <SiteHeader />
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="mb-4 flex items-center justify-between">
-          <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-primary sm:text-sm">
+      <main className="mx-auto max-w-[1700px] px-3.5 sm:px-6">
+        {/* Barra superior de Navegação e Continuar de Onde Parou */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-primary sm:text-sm"
+          >
             <ChevronLeft className="h-4 w-4" /> Voltar para o Início
           </Link>
-          <span className="rounded-full bg-secondary/80 px-3 py-1 text-xs font-medium text-accent border border-border/40">
-            {show.title}
-          </span>
+
+          <div className="flex items-center gap-2">
+            {savedLastIndex !== null && savedLastIndex !== current && (
+              <button
+                onClick={() => setCurrent(savedLastIndex)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 border border-primary/30 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-all cursor-pointer shadow-sm active:scale-95"
+                title="Clique para ir diretamente onde você parou neste desenho"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Continuar do Ep. {savedLastIndex + 1}</span>
+              </button>
+            )}
+            <span className="rounded-full bg-secondary/80 px-3.5 py-1 text-xs font-bold text-accent border border-border/40">
+              {show.title}
+            </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-          <div className="lg:col-span-8">
+        {/* Layout Principal: Lateral de Categorias A-Z + Player + Episódios */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 xl:gap-6">
+          {/* COLUNA LATERAL ESQUERDA: CATEGORIAS E DESENHOS EM ORDEM ALFABÉTICA */}
+          <div className="lg:col-span-3 xl:col-span-3 order-2 lg:order-1">
+            <CategoriesNavPanel
+              currentShowSlug={show.slug}
+              allShows={allShows}
+              watchHistory={watchHistory}
+              className="sticky top-20"
+            />
+          </div>
+
+          {/* COLUNA CENTRAL: PLAYER DE VÍDEO E DETALHES DO EPISÓDIO */}
+          <div className="lg:col-span-6 xl:col-span-6 order-1 lg:order-2 space-y-4">
             <div className="relative aspect-video w-full overflow-hidden rounded-3xl border border-border/80 bg-black shadow-2xl">
               {isLoading ? (
                 <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center bg-black/95">
@@ -373,7 +447,7 @@ function Watch() {
                 </div>
               ) : episode.videoUrl ? (
                 <>
-                  {episode.videoUrl.includes('.mp4') && !episode.videoUrl.includes('/embed/') ? (
+                  {episode.videoUrl.includes(".mp4") && !episode.videoUrl.includes("/embed/") ? (
                     <video
                       key={episode.id}
                       ref={videoRef}
@@ -439,23 +513,31 @@ function Watch() {
               )}
             </div>
 
-            <div className="mt-5 rounded-3xl border border-border/80 bg-card p-5 sm:p-6 shadow-card">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            {/* Controles e Informações do Episódio */}
+            <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-card">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-primary">Episódio {current + 1} de {episodesList.length}</span>
-                  <h1 className="mt-1 font-display text-2xl font-bold text-foreground sm:text-3xl">{episode.title}</h1>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                      Episódio {current + 1} de {episodesList.length}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.2 rounded border border-emerald-500/30">
+                      Progresso Salvo
+                    </span>
+                  </div>
+                  <h1 className="mt-1 font-display text-xl sm:text-2xl font-bold text-foreground">{episode.title}</h1>
                 </div>
-                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
-                  <button onClick={handlePrev} disabled={current === 0} className="h-11 px-3.5 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold hover:bg-secondary">
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0">
+                  <button onClick={handlePrev} disabled={current === 0} className="h-10 px-3 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold hover:bg-secondary disabled:opacity-40 cursor-pointer">
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  <button onClick={handleNext} disabled={current === episodesList.length - 1} className="h-11 px-3.5 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold hover:bg-secondary">
+                  <button onClick={handleNext} disabled={current === episodesList.length - 1} className="h-10 px-3 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold hover:bg-secondary disabled:opacity-40 cursor-pointer">
                     <ChevronRight className="h-4 w-4" />
                   </button>
-                  <button onClick={() => setInList(!inList)} className="h-11 px-3.5 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold flex items-center gap-1.5">
-                    {inList ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />} Lista
+                  <button onClick={() => setInList(!inList)} className="h-10 px-3 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+                    {inList ? <Check className="h-4 w-4 text-emerald-400" /> : <Plus className="h-4 w-4" />} Lista
                   </button>
-                  <button onClick={handleShare} className="h-11 px-3.5 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold">
+                  <button onClick={handleShare} className="h-10 px-3 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold cursor-pointer" title="Compartilhar Link">
                     <Share2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -463,15 +545,19 @@ function Watch() {
             </div>
           </div>
 
-          <div className="lg:col-span-4">
-            <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-card">
+          {/* COLUNA LATERAL DIREITA: TODOS OS EPISÓDIOS DO TÍTULO ATUAL */}
+          <div className="lg:col-span-3 xl:col-span-3 order-3">
+            <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-card sticky top-20">
               <div className="flex items-center justify-between border-b border-border/60 pb-3">
                 <div className="flex items-center gap-2">
-                  <Film className="h-5 w-5 text-primary" />
-                  <h2 className="font-display text-lg font-bold text-foreground">Todos os Episódios</h2>
+                  <Film className="h-4 w-4 text-primary" />
+                  <h2 className="font-display text-sm font-bold text-foreground">Todos os Episódios</h2>
                 </div>
+                <span className="text-[11px] font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                  {episodesList.length}
+                </span>
               </div>
-              <div className="mt-3 flex flex-col gap-2.5 max-h-[580px] overflow-y-auto pr-1">
+              <div className="mt-3 flex flex-col gap-2 max-h-[calc(100vh-220px)] overflow-y-auto pr-1 [scrollbar-width:thin]">
                 {isLoading ? (
                   <div className="space-y-2.5 p-2">
                     {[1, 2, 3, 4].map((n) => (
@@ -496,21 +582,21 @@ function Watch() {
                       <button
                         key={epItem.id}
                         onClick={() => setCurrent(index)}
-                        className={`group relative flex items-start gap-3 rounded-2xl border p-3 text-left transition-all ${
-                          isActive ? "border-primary bg-primary/15" : "border-border/70 bg-secondary/30"
+                        className={`group relative flex items-start gap-2.5 rounded-xl border p-2.5 text-left transition-all cursor-pointer ${
+                          isActive ? "border-primary bg-primary/15 shadow-sm" : "border-border/70 bg-secondary/30 hover:bg-secondary/60"
                         }`}
                       >
                         <div className="min-w-0 flex-1">
-                          <span className={`block truncate font-bold text-sm ${isActive ? "text-primary" : "text-foreground"}`}>{epItem.title}</span>
-                          <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                          <span className={`block truncate font-bold text-xs ${isActive ? "text-primary" : "text-foreground"}`}>{epItem.title}</span>
+                          <div className="mt-1 flex items-center justify-between text-[10px]">
                             <span className="font-semibold text-muted-foreground">{epItem.duration}</span>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1">
                               {isWatched && !isActive && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                                  <CheckCircle2 className="h-3 w-3" /> Assistido
+                                <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-500/15 px-1.5 py-0.2 rounded border border-emerald-500/30">
+                                  <CheckCircle2 className="h-2.5 w-2.5" /> Assistido
                                 </span>
                               )}
-                              {isActive && <span className="font-bold text-primary animate-pulse text-[11px]">Assistindo</span>}
+                              {isActive && <span className="font-bold text-primary animate-pulse text-[10px]">Assistindo</span>}
                             </div>
                           </div>
                         </div>
