@@ -10,6 +10,7 @@ import {
 import {
   createUserProfile,
   updateUserLastLogin,
+  ensureUserProfile,
   ADMIN_EMAIL,
   ADMIN_EMAILS,
   isAdminEmail,
@@ -59,6 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
+        if (firebaseUser.email) {
+          ensureUserProfile(firebaseUser.uid, firebaseUser.email).catch(() => {});
+        }
         const isMaster = isAdminEmail(firebaseUser.email);
         if (isMaster) {
           setIsAdmin(true);
@@ -98,7 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    const isMaster = isAdminEmail(cred.user.email);
+    const userEmail = cred.user.email || email;
+    const isMaster = isAdminEmail(userEmail);
 
     if (isMaster) {
       setIsAdmin(true);
@@ -113,8 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Registra último login no Firestore
-    updateUserLastLogin(cred.user.uid).catch(() => {});
+    // Garante que o perfil do usuário exista no Firestore
+    ensureUserProfile(cred.user.uid, userEmail).catch(() => {});
   };
 
   const register = async (email: string, password: string) => {

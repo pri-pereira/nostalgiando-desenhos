@@ -61,7 +61,17 @@ import {
   syncAllShowsToCloud,
   resetCatalogToDefault,
 } from "@/data/shows";
-import { getAllUsers, type UserProfile, ADMIN_EMAIL, ADMIN_EMAILS, isAdminEmail } from "@/lib/users";
+import {
+  getAllUsers,
+  deleteUserProfile,
+  toggleUserStatus,
+  ensureUserProfile,
+  type UserProfile,
+  ADMIN_EMAIL,
+  ADMIN_EMAILS,
+  isAdminEmail,
+} from "@/lib/users";
+import { toast } from "sonner";
 import { generateTotpSecret, generateOtpAuthUri, getQrCodeImageUrl } from "@/lib/totp";
 
 export const Route = createFileRoute("/admin")({
@@ -573,6 +583,9 @@ function AdminDashboard() {
   const loadUsers = async () => {
     setLoadingUsers(true);
     try {
+      if (user && user.email) {
+        await ensureUserProfile(user.uid, user.email).catch(() => {});
+      }
       const u = await getAllUsers();
       setUsersList(u);
     } catch (err) {
@@ -720,7 +733,7 @@ function AdminDashboard() {
                 )}
                 {item.id === "usuarios" && (
                   <span className="rounded-full bg-primary/20 text-primary border border-primary/30 px-2.5 py-0.5 text-xs font-bold">
-                    {usersList.length}
+                    {usersList.filter((u) => u.status === "ativo").length}
                   </span>
                 )}
               </button>
@@ -846,6 +859,15 @@ function AdminDashboard() {
                   users={usersList}
                   loading={loadingUsers}
                   onRefresh={loadUsers}
+                  currentUser={user}
+                  onUserDeleted={(uid) => {
+                    setUsersList((prev) => prev.filter((u) => u.uid !== uid));
+                  }}
+                  onUserStatusChanged={(uid, newStatus) => {
+                    setUsersList((prev) =>
+                      prev.map((u) => (u.uid === uid ? { ...u, status: newStatus } : u))
+                    );
+                  }}
                 />
               )}
               {activeTab === "adicionar" && (
@@ -1944,26 +1966,45 @@ function AdminUsersTab({
   users,
   loading,
   onRefresh,
+  currentUser,
+  onUserDeleted,
+  onUserStatusChanged,
 }: {
   users: UserProfile[];
   loading: boolean;
   onRefresh: () => void;
+  currentUser?: any;
+  onUserDeleted?: (uid: string) => void;
+  onUserStatusChanged?: (uid: string, status: "ativo" | "inativo") => void;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [onlyActive, setOnlyActive] = useState(true);
+  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [updatingStatusUid, setUpdatingStatusUid] = useState<string | null>(null);
 
+  // Usuários ativos
+  const activeUsers = useMemo(() => {
+    return users.filter((u) => u.status === "ativo");
+  }, [users]);
+
+  // Base da lista respeitando o filtro de ativos
+  const baseList = onlyActive ? activeUsers : users;
+
+  // Filtragem por busca
   const filteredUsers = useMemo(() => {
-    if (!searchTerm.trim()) return users;
+    if (!searchTerm.trim()) return baseList;
     const term = searchTerm.toLowerCase();
-    return users.filter(
+    return baseList.filter(
       (u) =>
         u.email.toLowerCase().includes(term) ||
         u.name.toLowerCase().includes(term) ||
         u.role.toLowerCase().includes(term)
     );
-  }, [users, searchTerm]);
+  }, [baseList, searchTerm]);
 
-  const totalAdmins = users.filter((u) => u.role === "admin" || isAdminEmail(u.email)).length;
-  const totalFollowers = users.filter((u) => u.role !== "admin" && !isAdminEmail(u.email)).length;
+  const totalAdmins = baseList.filter((u) => u.role === "admin" || isAdminEmail(u.email)).length;
+  const totalFollowers = baseList.filter((u) => u.role !== "admin" && !isAdminEmail(u.email)).length;
 
   const formatDate = (isoStr?: string) => {
     if (!isoStr) return "-";
@@ -1980,6 +2021,43 @@ function AdminUsersTab({
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteUserProfile(userToDelete.uid);
+      toast.success(`Usuário ${userToDelete.name || "selecionado"} excluído com sucesso!`);
+      if (onUserDeleted) {
+        onUserDeleted(userToDelete.uid);
+      }
+      setUserToDelete(null);
+    } catch (err: any) {
+      toast.error("Erro ao excluir usuário: " + (err?.message || "Tente novamente"));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleToggleStatus = async (targetUser: UserProfile) => {
+    const newStatus = targetUser.status === "ativo" ? "inativo" : "ativo";
+    setUpdatingStatusUid(targetUser.uid);
+    try {
+      await toggleUserStatus(targetUser.uid, newStatus);
+      toast.success(
+        newStatus === "ativo"
+          ? `Usuário ${targetUser.name} reativado com sucesso!`
+          : `Usuário ${targetUser.name} marcado como inativo.`
+      );
+      if (onUserStatusChanged) {
+        onUserStatusChanged(targetUser.uid, newStatus);
+      }
+    } catch (err: any) {
+      toast.error("Erro ao alterar status do usuário: " + (err?.message || "Tente novamente"));
+    } finally {
+      setUpdatingStatusUid(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header com Boas-vindas e Ações */}
@@ -1990,18 +2068,45 @@ function AdminUsersTab({
             Usuários Cadastrados
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Acompanhe os seguidores cadastrados no Nostalgiando e os acessos à plataforma.
+            Gerencie os seguidores e administradores cadastrados na plataforma Nostalgiando.
           </p>
         </div>
 
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-secondary/50 text-foreground hover:bg-secondary transition-all text-sm font-semibold active:scale-95 disabled:opacity-50 cursor-pointer"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-primary" : ""}`} />
-          <span>{loading ? "Atualizando..." : "Recarregar Lista"}</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          {/* Alternador de filtro: Apenas Ativos vs Todos */}
+          <div className="inline-flex items-center rounded-xl bg-secondary/40 p-1 border border-white/10 text-xs">
+            <button
+              onClick={() => setOnlyActive(true)}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                onlyActive
+                  ? "bg-primary text-black shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Apenas Ativos ({activeUsers.length})
+            </button>
+            <button
+              onClick={() => setOnlyActive(false)}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                !onlyActive
+                  ? "bg-primary text-black shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Todos ({users.length})
+            </button>
+          </div>
+
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-white/10 bg-secondary/50 text-foreground hover:bg-secondary transition-all text-xs font-semibold active:scale-95 disabled:opacity-50 cursor-pointer"
+            title="Recarregar dados do Firestore"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-primary" : ""}`} />
+            <span className="hidden sm:inline">{loading ? "Atualizando..." : "Atualizar"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Cards de Métricas */}
@@ -2009,15 +2114,17 @@ function AdminUsersTab({
         <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Total de Cadastros
+              {onlyActive ? "Usuários Ativos" : "Total de Cadastros"}
             </span>
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
               <Users className="h-5 w-5" />
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-3xl font-black text-foreground">{users.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Registrados no Firestore</p>
+            <div className="text-3xl font-black text-foreground">{baseList.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {onlyActive ? "Contas ativas no Firestore" : "Total geral registrado"}
+            </p>
           </div>
         </div>
 
@@ -2032,7 +2139,9 @@ function AdminUsersTab({
           </div>
           <div className="mt-3">
             <div className="text-3xl font-black text-blue-400">{totalFollowers}</div>
-            <p className="text-xs text-muted-foreground mt-1">Membros ativos</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {onlyActive ? "Membros ativos" : "Total de seguidores"}
+            </p>
           </div>
         </div>
 
@@ -2075,6 +2184,7 @@ function AdminUsersTab({
                 <th className="px-5 py-4">Data de Cadastro</th>
                 <th className="px-5 py-4">Último Acesso</th>
                 <th className="px-5 py-4 text-center">Status</th>
+                <th className="px-5 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
@@ -2082,6 +2192,9 @@ function AdminUsersTab({
                 filteredUsers.map((u) => {
                   const isAdminUser = u.role === "admin" || isAdminEmail(u.email);
                   const initial = (u.name || u.email || "U").charAt(0).toUpperCase();
+                  const isMe =
+                    (currentUser?.uid && currentUser.uid === u.uid) ||
+                    (currentUser?.email && u.email && currentUser.email.toLowerCase() === u.email.toLowerCase());
 
                   return (
                     <tr key={u.uid} className="hover:bg-secondary/20 transition-colors">
@@ -2097,8 +2210,17 @@ function AdminUsersTab({
                             {initial}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-bold text-foreground truncate">{u.name}</div>
-                            <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                            <div className="font-bold text-foreground truncate flex items-center gap-2">
+                              <span>{u.name}</span>
+                              {isMe && (
+                                <span className="text-[10px] font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 px-1.5 py-0.2 rounded">
+                                  Você
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {u.email || <span className="italic text-muted-foreground/60">Sem e-mail informado</span>}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -2126,17 +2248,66 @@ function AdminUsersTab({
                       </td>
 
                       <td className="px-5 py-4 text-center">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Ativo
-                        </span>
+                        {u.status === "ativo" ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Ativo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
+                            Inativo
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Ações de gerenciamento */}
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {isMe ? (
+                            <span className="text-[11px] font-semibold text-muted-foreground/60 px-2 py-1">
+                              Protegido
+                            </span>
+                          ) : (
+                            <>
+                              {/* Botão de Alternar Status (Ativar / Desativar) */}
+                              <button
+                                onClick={() => handleToggleStatus(u)}
+                                disabled={updatingStatusUid === u.uid}
+                                className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                                  u.status === "ativo"
+                                    ? "border-white/10 bg-white/5 text-muted-foreground hover:bg-yellow-500/10 hover:text-yellow-400 hover:border-yellow-500/30"
+                                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                                }`}
+                                title={u.status === "ativo" ? "Desativar acesso" : "Reativar usuário"}
+                              >
+                                {updatingStatusUid === u.uid ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : u.status === "ativo" ? (
+                                  "Desativar"
+                                ) : (
+                                  "Ativar"
+                                )}
+                              </button>
+
+                              {/* Botão de Excluir Usuário */}
+                              <button
+                                onClick={() => setUserToDelete(u)}
+                                className="p-1.5 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-500/15 border border-transparent hover:border-red-500/30 transition-all cursor-pointer"
+                                title="Excluir usuário do Firestore"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-muted-foreground">
+                  <td colSpan={6} className="py-12 text-center text-muted-foreground">
                     {loading ? (
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -2145,9 +2316,11 @@ function AdminUsersTab({
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Users className="h-8 w-8 text-muted-foreground/40" />
-                        <p className="font-semibold text-foreground">Nenhum seguidor encontrado</p>
+                        <p className="font-semibold text-foreground">Nenhum usuário encontrado</p>
                         <p className="text-xs text-muted-foreground">
-                          Assim que novos usuários criarem conta no site, eles aparecerão aqui em tempo real.
+                          {onlyActive
+                            ? "Não há usuários com status ativo para os filtros aplicados."
+                            : "Nenhum seguidor ou usuário cadastrado na base."}
                         </p>
                       </div>
                     )}
@@ -2158,6 +2331,69 @@ function AdminUsersTab({
           </table>
         </div>
       </div>
+
+      {/* Modal de Confirmação para Excluir Usuário */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-[#121118] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Excluir Usuário?</h3>
+                <p className="text-xs text-muted-foreground">Essa ação removerá o registro do Firestore.</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-black/40 p-4 space-y-2 text-sm">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Usuário:</span>
+                <span className="font-bold text-foreground">{userToDelete.name}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">E-mail:</span>
+                <span className="font-mono text-foreground">{userToDelete.email || "Sem e-mail cadastrado"}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Tipo:</span>
+                <span className="font-semibold capitalize text-primary">{userToDelete.role}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              O documento deste usuário será deletado permanentemente do banco de dados.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setUserToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl border border-white/10 bg-secondary/50 hover:bg-secondary text-foreground text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold shadow-lg shadow-red-600/20 transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Excluindo...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Excluir Definitivamente</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

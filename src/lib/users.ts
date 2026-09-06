@@ -1,4 +1,4 @@
-import { db, collection, getDocs, doc, setDoc, getDoc, updateDoc } from "./firebase";
+import { db, collection, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc } from "./firebase";
 
 export interface UserProfile {
   uid: string;
@@ -73,6 +73,55 @@ export async function createUserProfile(
 }
 
 /**
+ * Garante que o perfil do usuário autenticado exista no Firestore com os dados corretos
+ */
+export async function ensureUserProfile(
+  uid: string,
+  email: string,
+  customName?: string
+): Promise<UserProfile> {
+  if (!db) {
+    return createUserProfile(uid, email, customName);
+  }
+  try {
+    const userDocRef = doc(db, USERS_COLLECTION, uid);
+    const snap = await getDoc(userDocRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      const isMasterAdmin = isAdminEmail(email);
+      const updatedFields: Record<string, any> = {
+        lastLogin: new Date().toISOString(),
+      };
+
+      if (!data.email) {
+        updatedFields.email = email.trim().toLowerCase();
+      }
+      if (isMasterAdmin && data.role !== "admin") {
+        updatedFields.role = "admin";
+      }
+      if (!data.status) {
+        updatedFields.status = "ativo";
+      }
+
+      await updateDoc(userDocRef, updatedFields);
+
+      return {
+        uid,
+        email: (data.email || email).trim().toLowerCase(),
+        name: data.name || customName || email.split("@")[0]?.replace(/[._-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) || "Usuário",
+        role: isMasterAdmin ? "admin" : (data.role as "admin" | "user" || "user"),
+        createdAt: data.createdAt || new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+        status: (data.status as "ativo" | "inativo") || "ativo",
+      };
+    }
+  } catch (err) {
+    console.warn("Aviso ao verificar perfil no Firestore:", err);
+  }
+  return createUserProfile(uid, email, customName);
+}
+
+/**
  * Atualiza o timestamp do último login do usuário
  */
 export async function updateUserLastLogin(uid: string): Promise<void> {
@@ -84,6 +133,32 @@ export async function updateUserLastLogin(uid: string): Promise<void> {
     });
   } catch (err) {
     console.warn("Aviso ao atualizar último login:", err);
+  }
+}
+
+/**
+ * Exclui um usuário do Firestore
+ */
+export async function deleteUserProfile(uid: string): Promise<void> {
+  if (!db) return;
+  try {
+    await deleteDoc(doc(db, USERS_COLLECTION, uid));
+  } catch (err) {
+    console.error("Erro ao excluir perfil de usuário no Firestore:", err);
+    throw err;
+  }
+}
+
+/**
+ * Alterna o status do usuário entre ativo e inativo
+ */
+export async function toggleUserStatus(uid: string, status: "ativo" | "inativo"): Promise<void> {
+  if (!db) return;
+  try {
+    await updateDoc(doc(db, USERS_COLLECTION, uid), { status });
+  } catch (err) {
+    console.error("Erro ao atualizar status do usuário:", err);
+    throw err;
   }
 }
 
@@ -101,7 +176,7 @@ export async function getAllUsers(): Promise<UserProfile[]> {
       return {
         uid: d.id,
         email: data.email || "",
-        name: data.name || "Nostálgico",
+        name: data.name || (data.email ? data.email.split("@")[0] : "Nostálgico"),
         role: (data.role as "admin" | "user") || "user",
         createdAt: data.createdAt || new Date().toISOString(),
         lastLogin: data.lastLogin || data.createdAt || new Date().toISOString(),
