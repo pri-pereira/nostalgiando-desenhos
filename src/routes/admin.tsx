@@ -644,10 +644,10 @@ function AdminDashboard() {
     return shows.filter((s) => {
       const matchesQuery =
         !searchQuery ||
-        s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (s.archiveId && s.archiveId.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (s.year && s.year.includes(searchQuery));
+        (s?.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s?.slug || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s?.archiveId && s.archiveId.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (s?.year && s.year.includes(searchQuery));
 
       const matchesCategory =
         selectedCategoryFilter === "todos" || s.category === selectedCategoryFilter;

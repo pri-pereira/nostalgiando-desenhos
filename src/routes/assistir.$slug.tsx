@@ -73,7 +73,7 @@ function Watch() {
   const { user, isAdmin } = useAuth();
   
   // Resolvemos o show real no cliente (atualiza da nuvem/Firestore mesmo se houver mock no SSR)
-  const [show, setShow] = useState<Show | undefined>(serverShow);
+  const [show, setShow] = useState<Show | undefined>(() => serverShow || getStaticShow(slug));
   const [allShows, setAllShows] = useState<Show[]>(() => getCachedShows());
 
   useEffect(() => {
@@ -305,7 +305,13 @@ function Watch() {
             }
 
             const baseName = (f.name || "").split("/").pop() || f.name;
-            const cleanName = decodeURIComponent(baseName)
+            let cleanName = baseName;
+            try {
+              cleanName = decodeURIComponent(baseName);
+            } catch {
+              cleanName = baseName;
+            }
+            cleanName = cleanName
               .replace(/\.(mp4|mkv|avi|webm|ogv|m4v)$/i, "")
               .replace(/_/g, " ")
               .replace(/-/g, " ")
@@ -316,9 +322,10 @@ function Watch() {
             const isMp4OrWebm =
               f.name.toLowerCase().endsWith(".mp4") || f.name.toLowerCase().endsWith(".webm");
 
+            const encodedFileName = encodeURIComponent(f.name).replace(/%2F/g, "/");
             const videoUrl = isMp4OrWebm
-              ? `https://archive.org/download/${safeId}/${encodeURI(f.name)}`
-              : `https://archive.org/embed/${safeId}/${encodeURIComponent(f.name)}`;
+              ? `https://archive.org/download/${safeId}/${encodedFileName}`
+              : `https://archive.org/embed/${safeId}/${encodedFileName}`;
 
             return {
               id: f.name,
@@ -333,7 +340,7 @@ function Watch() {
             setDynamicEpisodes([
               {
                 id: "archive-embed-full",
-                title: show.title + " (Acervo Completo)",
+                title: (show?.title || "Desenho") + " (Acervo Completo)",
                 synopsis: "Assista aos episódios resgatados diretamente do acervo.",
                 duration: "--:--",
                 videoUrl: `https://archive.org/embed/${safeId}`,
@@ -350,22 +357,14 @@ function Watch() {
       .finally(() => setIsLoading(false));
   }, [show?.slug, show?.archiveId]);
 
-  if (!show) {
-    return (
-      <div className="min-h-screen bg-background pt-28 pb-16 flex items-center justify-center">
-        <h1 className="text-2xl text-white">Carregando...</h1>
-      </div>
-    );
-  }
-
   // Define a lista de episódios (prioriza episódios dinâmicos do Archive quando archiveId existe)
   const episodesList = dynamicEpisodes.length > 0 
     ? dynamicEpisodes 
-    : (show.archiveId && isLoading 
+    : (show?.archiveId && isLoading 
         ? [] 
-        : (show.episodes || []));
+        : (show?.episodes || []));
 
-  const episode = episodesList[current] || (episodesList.length > 0 ? episodesList[0] : (show.episodes && show.episodes.length > 0 && !show.archiveId ? show.episodes[0] : {
+  const episode = episodesList[current] || (episodesList.length > 0 ? episodesList[0] : (show?.episodes && show.episodes.length > 0 && !show?.archiveId ? show.episodes[0] : {
     id: "empty",
     title: isLoading ? "Carregando acervo..." : "Sem Episódios",
     synopsis: isLoading ? "Buscando episódios no Internet Archive..." : "Nenhum episódio foi encontrado para este desenho ainda.",
@@ -520,11 +519,12 @@ function Watch() {
   };
 
   const related = useMemo(() => {
+    if (!show) return [];
     const currentCategory = show.category;
     const sameCat = allShows.filter((s) => s.slug !== show.slug && s.category === currentCategory);
     const otherCat = allShows.filter((s) => s.slug !== show.slug && s.category !== currentCategory);
     return [...sameCat, ...otherCat].slice(0, 10);
-  }, [allShows, show.slug, show.category]);
+  }, [allShows, show?.slug, show?.category]);
 
   const handleShare = () => {
     if (typeof window !== "undefined") {
@@ -547,6 +547,39 @@ function Watch() {
       setIsPlayingSimulated(true);
     }
   };
+
+  if (!show) {
+    return (
+      <div className="min-h-screen bg-background pt-24 pb-16 flex flex-col items-center justify-center text-center px-4">
+        <SiteHeader />
+        <div className="max-w-md w-full p-8 rounded-3xl border border-white/10 bg-card/90 backdrop-blur-xl shadow-2xl animate-in fade-in duration-300">
+          <div className="relative mb-5 mx-auto w-16 h-16 flex items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-amber-500/20 text-primary border border-primary/30 shadow-glow">
+            <Tv className="h-8 w-8 animate-pulse" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground mb-2 font-display">Carregando Acervo...</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mb-6 leading-relaxed">
+            Sincronizando este título clássico com a nuvem do Nostalgiando. Aguarde um instante...
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+            <Link
+              to="/"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-secondary/80 hover:bg-secondary text-foreground text-xs sm:text-sm font-bold border border-white/10 transition-all hover:border-primary/40 active:scale-95"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Voltar ao Início
+            </Link>
+            <Link
+              to="/categoria/$id"
+              params={{ id: "catalogo" }}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs sm:text-sm font-bold transition-all hover:bg-primary/90 active:scale-95 shadow-md"
+            >
+              Ver Catálogo
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pt-20 pb-16 sm:pt-24">

@@ -91,15 +91,15 @@ function CategoriaView() {
       const q = searchQuery.toLowerCase().trim();
       list = list.filter(
         (s) =>
-          s.title.toLowerCase().includes(q) ||
-          s.slug.toLowerCase().includes(q) ||
-          (s.year && s.year.includes(q))
+          (s?.title || "").toLowerCase().includes(q) ||
+          (s?.slug || "").toLowerCase().includes(q) ||
+          (s?.year && s.year.includes(q))
       );
     }
 
     // Classificação rigorosa por ordem alfabética (A a Z) dentro da categoria
     return [...list].sort((a, b) =>
-      a.title.localeCompare(b.title, "pt-BR", { sensitivity: "base" })
+      (a?.title || "").localeCompare(b?.title || "", "pt-BR", { sensitivity: "base" })
     );
   }, [shows, activeCategoryId, searchQuery]);
 

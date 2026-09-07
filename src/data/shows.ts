@@ -468,41 +468,56 @@ export const getAllShows = async (): Promise<Show[]> => {
     return DEFAULT_CATALOG_SHOWS;
   }
 
-  // 1. Tenta sincronizar com o Firestore em nuvem (Fonte Suprema da Verdade)
+  // 1. Sincroniza com o Firestore em nuvem (Fonte Suprema da Verdade para ambos os admins)
   try {
     if (db) {
-      const fetchFromFirestore = async (): Promise<Show[] | null> => {
+      const fetchFromFirestore = async (): Promise<{ shows: Show[]; isEmpty: boolean } | null> => {
         const showsCollection = collection(db, FIRESTORE_COLLECTION);
         const snapshot = await getDocs(showsCollection);
 
-        if (!snapshot.empty) {
-          return snapshot.docs.map((d) => {
-            const data = d.data();
-            return {
-              slug: data.slug || d.id,
-              title: data.title || "",
-              year: data.year || "Clássico",
-              category: (data.category as CategoryId) || "catalogo",
-              poster: data.poster || "",
-              synopsis: data.synopsis || "",
-              archiveId: data.archiveId || undefined,
-              episodes: data.episodes || [],
-            };
-          });
+        if (snapshot.empty) {
+          return { shows: [], isEmpty: true };
         }
-        return null;
+
+        const list = snapshot.docs.map((d) => {
+          const data = d.data();
+          const matchDefault = DEFAULT_CATALOG_SHOWS.find((s) => s.slug === (data.slug || d.id));
+          return {
+            slug: data.slug || d.id,
+            title: data.title || matchDefault?.title || "",
+            year: data.year || matchDefault?.year || "Clássico",
+            category: (data.category as CategoryId) || matchDefault?.category || "catalogo",
+            poster: data.poster || matchDefault?.poster || "",
+            synopsis: data.synopsis || matchDefault?.synopsis || "",
+            archiveId: data.archiveId || matchDefault?.archiveId || undefined,
+            episodes: Array.isArray(data.episodes) && data.episodes.length > 0 ? data.episodes : (matchDefault?.episodes || []),
+          };
+        });
+
+        return { shows: list, isEmpty: false };
       };
 
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
-      const cloudShows = await Promise.race([fetchFromFirestore(), timeoutPromise]);
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000));
+      const result = await Promise.race([fetchFromFirestore(), timeoutPromise]);
 
-      // Se a nuvem tiver dados, a nuvem é a fonte de verdade absoluta!
-      if (cloudShows && Array.isArray(cloudShows) && cloudShows.length > 0) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudShows));
-        notifyCatalogUpdated(cloudShows);
-        return cloudShows;
-      } else if (cloudShows === null) {
-        // Se a nuvem estiver vazia na primeira vez, envia o catálogo local para a nuvem
+      // Se a nuvem tiver dados, mescla com os clássicos padrão para garantir completude
+      if (result && !result.isEmpty && result.shows.length > 0) {
+        const cloudShows = result.shows;
+        const cloudSlugs = new Set(cloudShows.map((s) => s.slug));
+        
+        // Adiciona títulos padrão que porventura ainda não estejam na nuvem
+        const merged = [...cloudShows];
+        DEFAULT_CATALOG_SHOWS.forEach((defShow) => {
+          if (!cloudSlugs.has(defShow.slug)) {
+            merged.push(defShow);
+          }
+        });
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        notifyCatalogUpdated(merged);
+        return merged;
+      } else if (result && result.isEmpty) {
+        // Apenas se a coleção Firestore estiver REALMENTE vazia (primeiro deploy)
         const localShows = getCachedShows();
         for (const s of localShows) {
           try {
@@ -780,8 +795,15 @@ export const importCatalog = async (newShows: Show[]): Promise<Show[]> => {
   return newShows;
 };
 
-// Mantido para compatibilidade síncrona temporária onde precisar
-export const getStaticShow = (slug: string) => {
+// Mantido para compatibilidade síncrona onde precisar (inclui títulos dinâmicos salvos no cliente)
+export const getStaticShow = (slug: string): Show | undefined => {
+  if (typeof window !== "undefined") {
+    try {
+      const cached = getCachedShows();
+      const found = cached.find((s) => s.slug === slug);
+      if (found) return found;
+    } catch {}
+  }
   return DEFAULT_CATALOG_SHOWS.find((s) => s.slug === slug) || SHOWS.find((s) => s.slug === slug);
 };
 

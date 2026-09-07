@@ -78,15 +78,15 @@ export function CategoriesNavPanel({
         const q = searchTerm.toLowerCase().trim();
         list = list.filter(
           (s) =>
-            s.title.toLowerCase().includes(q) ||
-            s.synopsis.toLowerCase().includes(q) ||
-            (s.year && s.year.includes(q))
+            (s?.title || "").toLowerCase().includes(q) ||
+            (s?.synopsis || "").toLowerCase().includes(q) ||
+            (s?.year && s.year.includes(q))
         );
       }
 
       // CLASSIFICAÇÃO RIGOROSA POR ORDEM ALFABÉTICA (A a Z)
       list.sort((a, b) =>
-        a.title.localeCompare(b.title, "pt-BR", { sensitivity: "base" })
+        (a?.title || "").localeCompare(b?.title || "", "pt-BR", { sensitivity: "base" })
       );
 
       map[cat.id] = list;
