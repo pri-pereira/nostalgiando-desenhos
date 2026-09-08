@@ -19,11 +19,13 @@ import {
   resetAdminTotpSecret,
 } from "./users";
 import { verifyTotpCode } from "./totp";
+import { ENABLE_ADMIN_2FA } from "./authConfig";
 
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
   is2FAVerified: boolean;
+  is2FAEnabled: boolean;
   isLoading: boolean;
   isTotpConfigured: boolean;
   totpSecret: string | null;
@@ -45,7 +47,7 @@ const TWO_FA_SESSION_KEY = "nostalgiando_admin_2fa_ok";
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [is2FAVerified, setIs2FAVerified] = useState(false);
+  const [is2FAVerified, setIs2FAVerified] = useState(!ENABLE_ADMIN_2FA);
   const [isTotpConfigured, setIsTotpConfigured] = useState(false);
   const [totpSecret, setTotpSecret] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,22 +69,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isMaster) {
           setIsAdmin(true);
 
-          // Busca segredo TOTP do Firestore
-          try {
-            const secret = await getAdminTotpSecret(firebaseUser.uid);
-            if (secret) {
-              setTotpSecret(secret);
-              setIsTotpConfigured(true);
-            } else {
-              setIsTotpConfigured(false);
+          if (!ENABLE_ADMIN_2FA) {
+            // Quando o 2FA está desabilitado temporariamente, libera o acesso direto
+            setIs2FAVerified(true);
+          } else {
+            // Busca segredo TOTP do Firestore
+            try {
+              const secret = await getAdminTotpSecret(firebaseUser.uid);
+              if (secret) {
+                setTotpSecret(secret);
+                setIsTotpConfigured(true);
+              } else {
+                setIsTotpConfigured(false);
+              }
+            } catch (err) {
+              console.warn("Aviso ao carregar TOTP:", err);
             }
-          } catch (err) {
-            console.warn("Aviso ao carregar TOTP:", err);
           }
         }
       } else {
         setIsAdmin(false);
-        setIs2FAVerified(false);
+        setIs2FAVerified(!ENABLE_ADMIN_2FA);
         setTotpSecret(null);
         setIsTotpConfigured(false);
       }
@@ -94,11 +101,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     if (!auth) throw new Error("Firebase Auth não inicializado");
-    // Garante que o 2FA não fique pré-validado de logins anteriores
-    setIs2FAVerified(false);
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem(ADMIN_KEY);
-      sessionStorage.removeItem(TWO_FA_SESSION_KEY);
+    if (ENABLE_ADMIN_2FA) {
+      // Garante que o 2FA não fique pré-validado de logins anteriores
+      setIs2FAVerified(false);
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem(ADMIN_KEY);
+        sessionStorage.removeItem(TWO_FA_SESSION_KEY);
+      }
+    } else {
+      setIs2FAVerified(true);
     }
 
     const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -107,14 +118,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (isMaster) {
       setIsAdmin(true);
-      setIs2FAVerified(false); // Sempre exige o 2FA para o admin
-      // Carrega o segredo TOTP do respectivo admin
-      const secret = await getAdminTotpSecret(cred.user.uid);
-      if (secret) {
-        setTotpSecret(secret);
-        setIsTotpConfigured(true);
+      if (!ENABLE_ADMIN_2FA) {
+        setIs2FAVerified(true);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(TWO_FA_SESSION_KEY, "true");
+        }
       } else {
-        setIsTotpConfigured(false);
+        setIs2FAVerified(false); // Sempre exige o 2FA para o admin quando habilitado
+        // Carrega o segredo TOTP do respectivo admin
+        const secret = await getAdminTotpSecret(cred.user.uid);
+        if (secret) {
+          setTotpSecret(secret);
+          setIsTotpConfigured(true);
+        } else {
+          setIsTotpConfigured(false);
+        }
       }
     }
 
@@ -202,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(null);
     setIsAdmin(false);
-    setIs2FAVerified(false);
+    setIs2FAVerified(!ENABLE_ADMIN_2FA);
     if (typeof window !== "undefined") {
       sessionStorage.removeItem(ADMIN_KEY);
       sessionStorage.removeItem(TWO_FA_SESSION_KEY);
@@ -224,6 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isAdmin,
         is2FAVerified,
+        is2FAEnabled: ENABLE_ADMIN_2FA,
         isLoading,
         isTotpConfigured,
         totpSecret,

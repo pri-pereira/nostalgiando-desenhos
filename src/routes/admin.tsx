@@ -94,7 +94,7 @@ export const Route = createFileRoute("/admin")({
 type AdminTab = "dashboard" | "titulos" | "adicionar" | "categorias" | "usuarios";
 
 function AdminPage() {
-  const { isAdmin, is2FAVerified, isLoading } = useAuth();
+  const { isAdmin, is2FAVerified, is2FAEnabled, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -105,8 +105,8 @@ function AdminPage() {
     );
   }
 
-  // Se não for admin ou se ainda não validou o 2FA, vai para o gate
-  if (!isAdmin || !is2FAVerified) {
+  // Se não for admin ou se (2FA estiver ativo e ainda não tiver sido validado), vai para o gate
+  if (!isAdmin || (is2FAEnabled && !is2FAVerified)) {
     return <AdminAccessGate />;
   }
 
@@ -121,6 +121,7 @@ function AdminAccessGate() {
     user,
     isAdmin,
     is2FAVerified,
+    is2FAEnabled,
     isTotpConfigured,
     login,
     verify2FA,
@@ -139,8 +140,8 @@ function AdminAccessGate() {
   const [setupSecret, setSetupSecret] = useState<string>("");
   const [copied, setCopied] = useState(false);
 
-  // Se o usuário já está logado no Firebase como admin, mas falta o segundo fator:
-  const isPending2FA = isAdmin && !is2FAVerified;
+  // Se o usuário já está logado no Firebase como admin, mas falta o segundo fator (apenas se 2FA estiver ativado):
+  const isPending2FA = is2FAEnabled && isAdmin && !is2FAVerified;
 
   // Gera chave secreta Base32 apenas na primeira vez se ainda não tiver TOTP configurado
   useEffect(() => {
@@ -536,8 +537,10 @@ function AdminAccessGate() {
                       <Loader2 className="h-5 w-5 animate-spin" />
                       <span>Verificando credenciais...</span>
                     </>
-                  ) : (
+                  ) : is2FAEnabled ? (
                     <span>Avançar para Etapa 2 (2FA)</span>
+                  ) : (
+                    <span>Entrar no Painel Administrativo</span>
                   )}
                 </button>
               </form>
@@ -553,7 +556,7 @@ function AdminAccessGate() {
 // DASHBOARD PRINCIPAL
 // ============================================================================
 function AdminDashboard() {
-  const { logoutAdmin, user } = useAuth();
+  const { logoutAdmin, user, is2FAEnabled } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [shows, setShows] = useState<Show[]>(() => getCachedShows());
@@ -696,9 +699,18 @@ function AdminDashboard() {
                 <p className="text-xs text-primary font-bold tracking-wider uppercase">
                   Nostalgiando
                 </p>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 text-[10px] font-bold tracking-tight border border-emerald-500/20">
-                  2FA Ativo
-                </span>
+                {is2FAEnabled ? (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 text-[10px] font-bold tracking-tight border border-emerald-500/20">
+                    2FA Ativo
+                  </span>
+                ) : (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400 text-[10px] font-bold tracking-tight border border-amber-500/20"
+                    title="2FA pausado temporariamente para facilitar o cadastro de títulos"
+                  >
+                    2FA Pausado
+                  </span>
+                )}
               </div>
             </div>
           </div>
