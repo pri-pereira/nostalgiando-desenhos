@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Função auxiliar para verificar se o usuário autenticado é um administrador autorizado
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email in [
+          'priscillasantosp24@gmail.com',
+          'juniordrones1981@gmail.com'
+        ]
+      );
+    }
+
+    // Coleção do Catálogo de Desenhos / Shows
+    // - Qualquer visitante pode ler os desenhos
+    // - Apenas administradores podem criar, editar ou excluir
+    match /shows/{showId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Coleção de Perfis de Usuários
+    // - Usuários autenticados podem ler e gerenciar seus próprios dados
+    // - Administradores têm acesso total de leitura e escrita
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Bloqueia qualquer outra coleção por padrão
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

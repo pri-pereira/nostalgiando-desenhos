@@ -584,106 +584,184 @@ export const syncAllShowsToCloud = async (): Promise<{ success: boolean; count: 
   }
 };
 
-export const saveShowToStorage = (show: Show): Show[] => {
-  if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
-  
-  // 1. Atualiza localmente imediatamente
-  const currentList = getCachedShows();
+export interface ShowStorageResult {
+  success: boolean;
+  shows: Show[];
+  cloudSynced: boolean;
+  error?: string;
+  isPermissionError?: boolean;
+}
+
+export const saveShowToStorage = async (show: Show): Promise<ShowStorageResult> => {
+  const currentList = typeof window !== "undefined" ? getCachedShows() : DEFAULT_CATALOG_SHOWS;
+
+  // 1. Sanitiza payload do Firestore (sem campos undefined)
+  const payload: Record<string, any> = {
+    slug: show.slug,
+    title: show.title || "",
+    year: show.year || "Clássico",
+    category: show.category || "catalogo",
+    poster: show.poster || "",
+    synopsis: show.synopsis || "",
+    archiveId: show.archiveId || null,
+    episodes: show.episodes || [],
+    updatedAt: new Date().toISOString(),
+  };
+
+  // 2. Salva no Firestore (Nuvem) primeiro
+  if (db) {
+    try {
+      await setDoc(doc(db, FIRESTORE_COLLECTION, show.slug), payload, { merge: true });
+    } catch (err: any) {
+      const isPermission =
+        err?.code === "permission-denied" ||
+        err?.message?.toLowerCase().includes("permission") ||
+        err?.message?.toLowerCase().includes("insufficient");
+
+      console.error("Erro ao salvar no Firestore:", err);
+
+      return {
+        success: false,
+        shows: currentList,
+        cloudSynced: false,
+        isPermissionError: isPermission,
+        error: isPermission
+          ? "Permissão negada no Firebase Firestore. Seu usuário não tem autorização de escrita nas Regras de Segurança do Firebase."
+          : (err?.message || "Erro ao conectar com o banco de dados em nuvem."),
+      };
+    }
+  }
+
+  // 3. Sucesso no Firestore: Atualiza localmente
   const list = [...currentList];
   const index = list.findIndex((s) => s.slug === show.slug);
   if (index >= 0) {
     list[index] = { ...list[index], ...show };
   } else {
-    list.unshift(show); // Adiciona no início da lista
+    list.unshift(show);
   }
 
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-    notifyCatalogUpdated(list);
-  } catch (e) {
-    console.error("Erro ao salvar no LocalStorage:", e);
-  }
-
-  // 2. Salva no Firestore (Nuvem) com payload 100% sanitizado (sem undefined)
-  if (db) {
-    const payload: Record<string, any> = {
-      slug: show.slug,
-      title: show.title || "",
-      year: show.year || "Clássico",
-      category: show.category || "catalogo",
-      poster: show.poster || "",
-      synopsis: show.synopsis || "",
-      archiveId: show.archiveId || null,
-      episodes: show.episodes || [],
-      updatedAt: new Date().toISOString(),
-    };
-
-    setDoc(doc(db, FIRESTORE_COLLECTION, show.slug), payload, { merge: true }).catch((err) =>
-      console.error("Erro ao salvar no Firestore:", err)
-    );
-  }
-
-  return list;
-};
-
-export const updateShowInStorage = (slug: string, data: Partial<Show>): Show[] => {
-  if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
-
-  // 1. Atualiza localmente imediatamente
-  const currentList = getCachedShows();
-  const list = [...currentList];
-  const index = list.findIndex((s) => s.slug === slug);
-  if (index >= 0) {
-    list[index] = { ...list[index], ...data };
+  if (typeof window !== "undefined") {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
       notifyCatalogUpdated(list);
     } catch (e) {
-      console.error("Erro ao atualizar no LocalStorage:", e);
+      console.error("Erro ao salvar no LocalStorage:", e);
     }
   }
 
-  // 2. Atualiza no Firestore (Nuvem) com dados sanitizados
-  if (db) {
-    const payload: Record<string, any> = { updatedAt: new Date().toISOString() };
-    if (data.title !== undefined) payload.title = data.title;
-    if (data.year !== undefined) payload.year = data.year;
-    if (data.category !== undefined) payload.category = data.category;
-    if (data.poster !== undefined) payload.poster = data.poster;
-    if (data.synopsis !== undefined) payload.synopsis = data.synopsis;
-    if (data.archiveId !== undefined) payload.archiveId = data.archiveId || null;
-    if (data.episodes !== undefined) payload.episodes = data.episodes;
-
-    setDoc(doc(db, FIRESTORE_COLLECTION, slug), payload, { merge: true }).catch((err) =>
-      console.error("Erro ao atualizar no Firestore:", err)
-    );
-  }
-
-  return list;
+  return {
+    success: true,
+    shows: list,
+    cloudSynced: true,
+  };
 };
 
-export const deleteShowFromStorage = (slug: string): Show[] => {
-  if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
+export const updateShowInStorage = async (
+  slug: string,
+  data: Partial<Show>
+): Promise<ShowStorageResult> => {
+  const currentList = typeof window !== "undefined" ? getCachedShows() : DEFAULT_CATALOG_SHOWS;
 
-  // 1. Remove localmente imediatamente
-  const currentList = getCachedShows();
-  const updated = currentList.filter((s) => s.slug !== slug);
+  // 1. Sanitiza payload
+  const payload: Record<string, any> = { updatedAt: new Date().toISOString() };
+  if (data.title !== undefined) payload.title = data.title;
+  if (data.year !== undefined) payload.year = data.year;
+  if (data.category !== undefined) payload.category = data.category;
+  if (data.poster !== undefined) payload.poster = data.poster;
+  if (data.synopsis !== undefined) payload.synopsis = data.synopsis;
+  if (data.archiveId !== undefined) payload.archiveId = data.archiveId || null;
+  if (data.episodes !== undefined) payload.episodes = data.episodes;
 
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    notifyCatalogUpdated(updated);
-  } catch (e) {
-    console.error("Erro ao remover no LocalStorage:", e);
-  }
-
-  // 2. Remove do Firestore (Nuvem)
+  // 2. Atualiza no Firestore (Nuvem)
   if (db) {
-    deleteDoc(doc(db, FIRESTORE_COLLECTION, slug)).catch((err) =>
-      console.error("Erro ao deletar no Firestore:", err)
-    );
+    try {
+      await setDoc(doc(db, FIRESTORE_COLLECTION, slug), payload, { merge: true });
+    } catch (err: any) {
+      const isPermission =
+        err?.code === "permission-denied" ||
+        err?.message?.toLowerCase().includes("permission") ||
+        err?.message?.toLowerCase().includes("insufficient");
+
+      console.error("Erro ao atualizar no Firestore:", err);
+
+      return {
+        success: false,
+        shows: currentList,
+        cloudSynced: false,
+        isPermissionError: isPermission,
+        error: isPermission
+          ? "Permissão negada no Firebase Firestore. Seu usuário não tem autorização para atualizar este documento."
+          : (err?.message || "Erro ao conectar com o banco de dados em nuvem."),
+      };
+    }
   }
 
-  return updated;
+  // 3. Atualiza localmente
+  const list = [...currentList];
+  const index = list.findIndex((s) => s.slug === slug);
+  if (index >= 0) {
+    list[index] = { ...list[index], ...data };
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+        notifyCatalogUpdated(list);
+      } catch (e) {
+        console.error("Erro ao atualizar no LocalStorage:", e);
+      }
+    }
+  }
+
+  return {
+    success: true,
+    shows: list,
+    cloudSynced: true,
+  };
+};
+
+export const deleteShowFromStorage = async (slug: string): Promise<ShowStorageResult> => {
+  const currentList = typeof window !== "undefined" ? getCachedShows() : DEFAULT_CATALOG_SHOWS;
+
+  // 1. Remove do Firestore (Nuvem)
+  if (db) {
+    try {
+      await deleteDoc(doc(db, FIRESTORE_COLLECTION, slug));
+    } catch (err: any) {
+      const isPermission =
+        err?.code === "permission-denied" ||
+        err?.message?.toLowerCase().includes("permission") ||
+        err?.message?.toLowerCase().includes("insufficient");
+
+      console.error("Erro ao deletar no Firestore:", err);
+
+      return {
+        success: false,
+        shows: currentList,
+        cloudSynced: false,
+        isPermissionError: isPermission,
+        error: isPermission
+          ? "Permissão negada no Firebase Firestore. Seu usuário não tem autorização para excluir documentos."
+          : (err?.message || "Erro ao excluir do banco de dados em nuvem."),
+      };
+    }
+  }
+
+  // 2. Remove localmente
+  const updated = currentList.filter((s) => s.slug !== slug);
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      notifyCatalogUpdated(updated);
+    } catch (e) {
+      console.error("Erro ao remover no LocalStorage:", e);
+    }
+  }
+
+  return {
+    success: true,
+    shows: updated,
+    cloudSynced: true,
+  };
 };
 
 export const resetCatalogToDefault = (): Show[] => {

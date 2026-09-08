@@ -56,6 +56,7 @@ import {
   CATEGORIES,
   type Show,
   type CategoryId,
+  type ShowStorageResult,
   getAllShows,
   getCachedShows,
   saveShowToStorage,
@@ -617,19 +618,28 @@ function AdminDashboard() {
     }
   };
 
-  const handleAddShow = (newShow: Show) => {
-    const updated = saveShowToStorage(newShow);
-    setShows(updated);
+  const handleAddShow = async (newShow: Show): Promise<ShowStorageResult> => {
+    const result = await saveShowToStorage(newShow);
+    if (result.success) {
+      setShows(result.shows);
+    }
+    return result;
   };
 
-  const handleUpdateShow = (slug: string, data: Partial<Show>) => {
-    const updated = updateShowInStorage(slug, data);
-    setShows(updated);
+  const handleUpdateShow = async (slug: string, data: Partial<Show>): Promise<ShowStorageResult> => {
+    const result = await updateShowInStorage(slug, data);
+    if (result.success) {
+      setShows(result.shows);
+    }
+    return result;
   };
 
-  const handleDeleteShow = (slug: string) => {
-    const updated = deleteShowFromStorage(slug);
-    setShows(updated);
+  const handleDeleteShow = async (slug: string): Promise<ShowStorageResult> => {
+    const result = await deleteShowFromStorage(slug);
+    if (result.success) {
+      setShows(result.shows);
+    }
+    return result;
   };
 
   const handleResetCatalog = () => {
@@ -1269,13 +1279,15 @@ function TitulosView({
   setSearchQuery: (q: string) => void;
   selectedCategoryFilter: string;
   setSelectedCategoryFilter: (cat: string) => void;
-  deleteShow: (slug: string) => void;
-  updateShow: (slug: string, data: Partial<Show>) => void;
+  deleteShow: (slug: string) => Promise<ShowStorageResult> | void;
+  updateShow: (slug: string, data: Partial<Show>) => Promise<ShowStorageResult> | void;
   setActiveTab: (tab: AdminTab) => void;
 }) {
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<Show>>({});
   const [confirmDeleteSlug, setConfirmDeleteSlug] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const startEdit = (show: Show) => {
     setEditingSlug(show.slug);
@@ -1289,14 +1301,28 @@ function TitulosView({
     });
   };
 
-  const saveEdit = (slug: string) => {
-    const cleanArchive = sanitizeArchiveId(editData.archiveId);
-    updateShow(slug, {
-      ...editData,
-      archiveId: cleanArchive || undefined,
-    });
-    setEditingSlug(null);
-    setEditData({});
+  const saveEdit = async (slug: string) => {
+    setIsSavingEdit(true);
+    try {
+      const cleanArchive = sanitizeArchiveId(editData.archiveId);
+      const res = await updateShow(slug, {
+        ...editData,
+        archiveId: cleanArchive || undefined,
+      });
+
+      if (res && !res.success) {
+        toast.error(res.error || "Erro ao atualizar título na nuvem.");
+        return;
+      }
+
+      toast.success("Título atualizado com sucesso!");
+      setEditingSlug(null);
+      setEditData({});
+    } catch (err: any) {
+      toast.error(err?.message || "Erro inesperado ao salvar alterações.");
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   const cancelEdit = () => {
@@ -1304,9 +1330,21 @@ function TitulosView({
     setEditData({});
   };
 
-  const confirmDelete = (slug: string) => {
-    deleteShow(slug);
-    setConfirmDeleteSlug(null);
+  const confirmDelete = async (slug: string) => {
+    setIsDeleting(true);
+    try {
+      const res = await deleteShow(slug);
+      if (res && !res.success) {
+        toast.error(res.error || "Erro ao excluir título da nuvem.");
+        return;
+      }
+      toast.success("Título excluído com sucesso!");
+      setConfirmDeleteSlug(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Erro inesperado ao excluir título.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -1644,9 +1682,10 @@ function AdicionarView({
   addShow,
   setActiveTab,
 }: {
-  addShow: (show: Show) => void;
+  addShow: (show: Show) => Promise<ShowStorageResult>;
   setActiveTab: (tab: AdminTab) => void;
 }) {
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [archiveId, setArchiveId] = useState("");
@@ -1654,7 +1693,9 @@ function AdicionarView({
   const [year, setYear] = useState("");
   const [synopsis, setSynopsis] = useState("");
   const [category, setCategory] = useState<CategoryId>("catalogo");
+  const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorInfo, setErrorInfo] = useState<{ message: string; isPermission?: boolean } | null>(null);
 
   const handleTitleChange = (val: string) => {
     setTitle(val);
@@ -1672,63 +1713,155 @@ function AdicionarView({
       .replace(/(^-|-$)+/g, "");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title) {
-      alert("Por favor, preencha o Título do desenho!");
+    if (!title.trim()) {
+      toast.error("Por favor, preencha o Título do desenho!");
       return;
     }
 
-    const finalSlug = slug.trim() || generateSlug(title);
-    const cleanArchive = sanitizeArchiveId(archiveId);
+    setIsSaving(true);
+    setErrorInfo(null);
+    setSuccess(false);
 
-    const newShow: Show = {
-      slug: finalSlug,
-      title: title.trim(),
-      year: year.trim() || "Clássico",
-      category,
-      poster:
-        posterUrl.trim() ||
-        "https://via.placeholder.com/800x1200/111827/ffffff?text=" + encodeURIComponent(title),
-      synopsis:
-        synopsis.trim() || "Desenho clássico adicionado através do painel de administração.",
-      ...(cleanArchive ? { archiveId: cleanArchive } : {}),
-      episodes: [],
-    };
+    try {
+      const finalSlug = slug.trim() || generateSlug(title);
+      const cleanArchive = sanitizeArchiveId(archiveId);
 
-    addShow(newShow);
+      const newShow: Show = {
+        slug: finalSlug,
+        title: title.trim(),
+        year: year.trim() || "Clássico",
+        category,
+        poster:
+          posterUrl.trim() ||
+          "https://via.placeholder.com/800x1200/111827/ffffff?text=" + encodeURIComponent(title),
+        synopsis:
+          synopsis.trim() || "Desenho clássico adicionado através do painel de administração.",
+        ...(cleanArchive ? { archiveId: cleanArchive } : {}),
+        episodes: [],
+      };
 
-    setSuccess(true);
-    setTitle("");
-    setSlug("");
-    setArchiveId("");
-    setPosterUrl("");
-    setYear("");
-    setSynopsis("");
-    setCategory("catalogo");
+      const result = await addShow(newShow);
 
-    setTimeout(() => {
-      setSuccess(false);
-    }, 4000);
+      if (result.success && result.cloudSynced) {
+        setSuccess(true);
+        setTitle("");
+        setSlug("");
+        setArchiveId("");
+        setPosterUrl("");
+        setYear("");
+        setSynopsis("");
+        setCategory("catalogo");
+        toast.success("Título gravado e publicado na nuvem com sucesso!");
+        setTimeout(() => {
+          setSuccess(false);
+        }, 6000);
+      } else {
+        setErrorInfo({
+          message: result.error || "Falha ao gravar no banco de dados em nuvem do Firebase.",
+          isPermission: result.isPermissionError,
+        });
+        toast.error(
+          result.isPermissionError
+            ? "Permissão negada no Firebase Firestore!"
+            : (result.error || "Erro ao salvar na nuvem.")
+        );
+      }
+    } catch (err: any) {
+      setErrorInfo({
+        message: err?.message || "Ocorreu um erro inesperado ao salvar o título.",
+      });
+      toast.error("Erro inesperado ao salvar.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="max-w-2xl animate-in fade-in duration-300">
+      {/* Alerta de Erro / Falha de Permissão no Firebase */}
+      {errorInfo && (
+        <div className="mb-6 rounded-2xl bg-destructive/15 border border-destructive/30 p-4 sm:p-5 animate-in fade-in slide-in-from-top-3 duration-300">
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-destructive/20 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-base font-bold text-destructive">
+                  {errorInfo.isPermission
+                    ? "Permissão de Escrita Negada no Firebase Firestore"
+                    : "Falha ao Salvar no Banco de Dados"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setErrorInfo(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Fechar
+                </button>
+              </div>
+              <p className="text-sm text-destructive-foreground/90">
+                {errorInfo.message}
+              </p>
+
+              {errorInfo.isPermission && (
+                <div className="mt-3 rounded-xl bg-background/70 border border-destructive/20 p-3.5 text-xs text-muted-foreground space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                    <ShieldAlert className="h-4 w-4" />
+                    <span>Como autorizar este administrador no Firebase Console:</span>
+                  </div>
+                  <p>
+                    O usuário autenticado atualmente é:{" "}
+                    <strong className="text-foreground font-mono bg-secondary/80 px-1.5 py-0.5 rounded">
+                      {user?.email || "seu e-mail"}
+                    </strong>
+                  </p>
+                  <p>
+                    As Regras de Segurança (Firestore Rules) do projeto rejeitaram a gravação porque este e-mail ainda não está incluído na regra de escrita no Console do Firebase.
+                  </p>
+                  <div className="p-2.5 rounded-lg bg-black/50 font-mono text-[11px] text-amber-300 overflow-x-auto">
+                    allow write: if request.auth != null &amp;&amp; (request.auth.token.email in [&apos;priscillasantosp24@gmail.com&apos;, &apos;juniordrones1981@gmail.com&apos;]);
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/20 hover:bg-destructive/30 text-destructive text-sm font-bold transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isSaving ? "animate-spin" : ""}`} />
+                  Tentar Gravar Novamente na Nuvem
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta de Sucesso */}
       {success && (
         <div className="mb-6 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 p-4 sm:p-5 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-3 duration-300">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400">
               <Check className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-base font-bold text-emerald-400">Título adicionado com sucesso!</p>
+              <p className="text-base font-bold text-emerald-400">
+                Título gravado e sincronizado na nuvem com sucesso!
+              </p>
               <p className="text-sm text-emerald-400/80 mt-0.5">
-                Já está disponível no catálogo e na Home do site.
+                Já está salvo no banco de dados Firestore e visível para todos os administradores e visitantes.
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={() => setActiveTab("titulos")}
             className="text-sm font-bold text-emerald-400 hover:underline shrink-0"
           >
@@ -1744,7 +1877,7 @@ function AdicionarView({
             Adicionar Novo Título ao Catálogo
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Preencha os dados abaixo para publicar um desenho
+            Preencha os dados abaixo para publicar um desenho e sincronizar na nuvem
           </p>
         </div>
 
@@ -1760,6 +1893,7 @@ function AdicionarView({
                 placeholder="Ex: As Aventuras de Jackie Chan"
                 className="w-full h-12 rounded-xl border border-white/10 bg-secondary/40 px-4 text-base text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 required
+                disabled={isSaving}
               />
             </div>
 
@@ -1772,6 +1906,7 @@ function AdicionarView({
                 onChange={(e) => setSlug(e.target.value)}
                 placeholder="ex: jackie-chan-adventures"
                 className="w-full h-12 rounded-xl border border-white/10 bg-secondary/40 px-4 text-base text-foreground font-mono placeholder:text-muted-foreground focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                disabled={isSaving}
               />
             </div>
           </div>
@@ -1785,6 +1920,7 @@ function AdicionarView({
                 value={category}
                 onChange={(e) => setCategory(e.target.value as CategoryId)}
                 className="w-full h-12 rounded-xl border border-white/10 bg-secondary/40 px-4 text-base text-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none cursor-pointer"
+                disabled={isSaving}
               >
                 {CATEGORIES.filter((c) => c.id !== "todos").map((c) => (
                   <option key={c.id} value={c.id} className="bg-card text-foreground">
@@ -1803,6 +1939,7 @@ function AdicionarView({
                 onChange={(e) => setYear(e.target.value)}
                 placeholder="Ex: 1995"
                 className="w-full h-12 rounded-xl border border-white/10 bg-secondary/40 px-4 text-base text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                disabled={isSaving}
               />
             </div>
           </div>
@@ -1816,6 +1953,7 @@ function AdicionarView({
               onChange={(e) => setArchiveId(e.target.value)}
               placeholder="Ex: caverna-do-dragao_202508 ou corrida-malucadublado"
               className="w-full h-12 rounded-xl border border-white/10 bg-secondary/40 px-4 text-base text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-mono"
+              disabled={isSaving}
             />
             <p className="text-xs text-muted-foreground mt-1.5">
               Os episódios .mp4 desta coleção no archive.org serão carregados automaticamente no player de vídeo.
@@ -1831,6 +1969,7 @@ function AdicionarView({
               onChange={(e) => setPosterUrl(e.target.value)}
               placeholder="https://exemplo.com/poster.jpg"
               className="w-full h-12 rounded-xl border border-white/10 bg-secondary/40 px-4 text-base text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              disabled={isSaving}
             />
           </div>
 
@@ -1844,6 +1983,7 @@ function AdicionarView({
               placeholder="História do desenho..."
               rows={3}
               className="w-full rounded-xl border border-white/10 bg-secondary/40 px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
+              disabled={isSaving}
             />
           </div>
 
@@ -1873,10 +2013,20 @@ function AdicionarView({
 
           <button
             type="submit"
-            className="w-full h-14 rounded-2xl bg-gradient-to-r from-primary to-amber-600 text-primary-foreground font-bold text-base shadow-[0_0_20px_rgba(217,119,6,0.3)] transition-all hover:shadow-[0_0_30px_rgba(217,119,6,0.5)] active:scale-[0.98] flex items-center justify-center gap-2"
+            disabled={isSaving}
+            className="w-full h-14 rounded-2xl bg-gradient-to-r from-primary to-amber-600 text-primary-foreground font-bold text-base shadow-[0_0_20px_rgba(217,119,6,0.3)] transition-all hover:shadow-[0_0_30px_rgba(217,119,6,0.5)] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            <Plus className="h-5 w-5" />
-            Salvar e Publicar no Catálogo
+            {isSaving ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Gravando e Sincronizando com a Nuvem...</span>
+              </>
+            ) : (
+              <>
+                <Plus className="h-5 w-5" />
+                <span>Salvar e Publicar no Catálogo</span>
+              </>
+            )}
           </button>
         </form>
       </div>
