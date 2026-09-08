@@ -26,6 +26,7 @@ export const ADMIN_EMAILS: string[] =
     : [
         "priscillasantosp24@gmail.com",
         "juniordrones1981@gmail.com",
+        "alisson.moreira.dias.2005@gmail.com",
       ];
 
 // Mantém exportação para compatibilidade com código existente

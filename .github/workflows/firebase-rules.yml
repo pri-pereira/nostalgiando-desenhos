@@ -1,0 +1,35 @@
+name: Deploy Firebase Firestore Rules
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'firestore.rules'
+      - 'firebase.json'
+      - '.firebaserc'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Rules to Firebase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_NOSTALGIANDO_DESENHOS }}'
+          channelId: live
+          projectId: nostalgiando-desenhos
+        continue-on-error: true
+
+      - name: Deploy Firestore Rules using Firebase CLI
+        if: env.FIREBASE_TOKEN != '' || secrets.FIREBASE_TOKEN != ''
+        run: |
+          npx -y firebase-tools deploy --only firestore:rules --token "${{ secrets.FIREBASE_TOKEN }}" --project nostalgiando-desenhos
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

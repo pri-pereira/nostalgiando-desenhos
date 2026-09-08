@@ -1823,7 +1823,7 @@ function AdicionarView({
                     As Regras de Segurança (Firestore Rules) do projeto rejeitaram a gravação porque este e-mail ainda não está incluído na regra de escrita no Console do Firebase.
                   </p>
                   <div className="p-2.5 rounded-lg bg-black/50 font-mono text-[11px] text-amber-300 overflow-x-auto">
-                    allow write: if request.auth != null &amp;&amp; (request.auth.token.email in [&apos;priscillasantosp24@gmail.com&apos;, &apos;juniordrones1981@gmail.com&apos;]);
+                    allow write: if request.auth != null &amp;&amp; (request.auth.token.email in [&apos;priscillasantosp24@gmail.com&apos;, &apos;juniordrones1981@gmail.com&apos;, &apos;alisson.moreira.dias.2005@gmail.com&apos;]);
                   </div>
                 </div>
               )}
