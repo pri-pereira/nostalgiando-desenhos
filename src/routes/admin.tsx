@@ -1504,6 +1504,9 @@ function TitulosView({
                           placeholder="Ex: caverna-do-dragao_202508"
                           className="w-full h-12 rounded-xl border border-white/10 bg-secondary/40 px-3.5 text-base text-foreground font-mono focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                         />
+                        {editData.archiveId && (
+                          <ArchiveMetadataCounter archiveId={editData.archiveId} />
+                        )}
                       </div>
                     </div>
 
@@ -1958,6 +1961,7 @@ function AdicionarView({
             <p className="text-xs text-muted-foreground mt-1.5">
               Os episódios .mp4 desta coleção no archive.org serão carregados automaticamente no player de vídeo.
             </p>
+            {archiveId && <ArchiveMetadataCounter archiveId={archiveId} />}
           </div>
 
           <div>
@@ -2651,5 +2655,91 @@ function AdminUsersTab({
         </div>
       )}
     </div>
+  );
+}
+
+// ============================================================================
+// AUXILIAR: CONTADOR DE ARQUIVOS ARCHIVE.ORG
+// ============================================================================
+function ArchiveMetadataCounter({ archiveId }: { archiveId: string }) {
+  const [count, setCount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!archiveId) {
+      setCount(null);
+      return;
+    }
+
+    const cleanId = sanitizeArchiveId(archiveId);
+    if (!cleanId) return;
+
+    setLoading(true);
+    const timeout = setTimeout(() => {
+      fetch(`https://archive.org/metadata/${cleanId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.files) {
+            const isVideoFile = (name: string) => {
+              const lower = name.toLowerCase();
+              return (
+                lower.endsWith(".mp4") ||
+                lower.endsWith(".mkv") ||
+                lower.endsWith(".webm") ||
+                lower.endsWith(".avi") ||
+                lower.endsWith(".ogv") ||
+                lower.endsWith(".m4v")
+              );
+            };
+
+            const videoFiles = data.files.filter((f: any) => {
+              if (!f?.name) return false;
+              const lower = f.name.toLowerCase();
+              if (
+                lower.endsWith(".xml") ||
+                lower.endsWith(".sqlite") ||
+                lower.endsWith(".torrent") ||
+                lower.endsWith(".png") ||
+                lower.endsWith(".jpg") ||
+                lower.endsWith(".json")
+              ) {
+                return false;
+              }
+              return (
+                isVideoFile(f.name) ||
+                f.format === "h.264" ||
+                f.format === "MPEG4" ||
+                f.format === "Matroska" ||
+                f.format === "512Kb MPEG4" ||
+                (f.format && f.format.toLowerCase().includes("video"))
+              );
+            });
+            
+            setCount(videoFiles.length);
+          } else {
+            setCount(0);
+          }
+        })
+        .catch(() => setCount(0))
+        .finally(() => setLoading(false));
+    }, 800); // debounce de 800ms para não spammar API
+
+    return () => clearTimeout(timeout);
+  }, [archiveId]);
+
+  if (loading) {
+    return <p className="text-xs text-muted-foreground mt-2 animate-pulse flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin"/> Verificando acervo no archive.org...</p>;
+  }
+
+  if (count === null) return null;
+
+  return (
+    <p className={`text-xs mt-2 font-bold flex items-center gap-1.5 ${count > 0 ? "text-emerald-400" : "text-amber-500"}`}>
+      {count > 0 ? (
+        <><Check className="h-3.5 w-3.5" /> Encontrados {count} episódios/arquivos de vídeo no pacote.</>
+      ) : (
+        <><AlertTriangle className="h-3.5 w-3.5" /> Nenhum vídeo encontrado neste ID ou ID inválido.</>
+      )}
+    </p>
   );
 }
