@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/authContext";
 import { db, collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from "@/lib/firebase";
 import { Send, Trash2, MessageSquare, AlertCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 
 interface Comment {
   id: string;
