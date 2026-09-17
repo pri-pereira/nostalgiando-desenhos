@@ -673,11 +673,11 @@ function Watch() {
                 </div>
               ) : episode.videoUrl ? (
                 <>
-                  {episode.videoUrl.includes(".mp4") && !episode.videoUrl.includes("/embed/") ? (
+                  {(episode.videoUrl.toLowerCase().includes(".mp4") || episode.videoUrl.toLowerCase().includes(".webm")) ? (
                     <video
                       key={episode.id}
                       ref={videoRef}
-                      src={episode.videoUrl}
+                      src={episode.videoUrl.replace("/embed/", "/download/")}
                       controls
                       autoPlay
                       playsInline
