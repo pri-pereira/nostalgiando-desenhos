@@ -23,6 +23,7 @@ import {
 import { SiteHeader } from "@/components/SiteHeader";
 import { PosterCard } from "@/components/PosterCard";
 import { CategoriesNavPanel } from "@/components/CategoriesNavPanel";
+import { StarRating } from "@/components/StarRating";
 import { getShow, getStaticShow, getCachedShows, getAllShows, type Episode, type Show } from "@/data/shows";
 import { useAuth } from "@/lib/authContext";
 import {
@@ -780,6 +781,14 @@ function Watch() {
                     <Share2 className="h-4 w-4" />
                   </button>
                 </div>
+              </div>
+
+              {/* Avaliação das Estrelas */}
+              <div className="mt-4 pt-4 border-t border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" /> Avalie este Título
+                </span>
+                <StarRating slug={show.slug} readOnly={false} />
               </div>
             </div>
           </div>

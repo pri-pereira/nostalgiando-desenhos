@@ -5,9 +5,10 @@ import { useAuth } from "@/lib/authContext";
 
 interface StarRatingProps {
   slug: string;
+  readOnly?: boolean;
 }
 
-export function StarRating({ slug }: StarRatingProps) {
+export function StarRating({ slug, readOnly = false }: StarRatingProps) {
   const { user } = useAuth();
   const [personalRating, setPersonalRating] = useState<number>(0);
   const [averageRating, setAverageRating] = useState<number>(0);
@@ -42,32 +43,39 @@ export function StarRating({ slug }: StarRatingProps) {
   }, [slug, user]);
 
   const handleRate = async (newRating: number) => {
-    if (!isLoaded) return;
+    if (!isLoaded || readOnly) return;
     
     setPersonalRating(newRating);
     setAverageRating((prev) => prev === 0 ? newRating : (prev + newRating) / 2);
     await rateShow(slug, newRating, user?.uid);
   };
 
-  // Determina o valor visual exibido (se usuário tá passando mouse, mostra o hover dele. Senão mostra a média)
-  const displayValue = hovered > 0 ? hovered : averageRating;
+  // Determina o valor visual exibido (se usuário tá passando mouse e não é readonly, mostra o hover dele. Senão mostra a média)
+  const displayValue = hovered > 0 && !readOnly ? hovered : averageRating;
 
   return (
-    <div className="flex items-center gap-0.5 mt-2" onMouseLeave={() => setHovered(0)}>
+    <div 
+      className={`flex items-center gap-0.5 mt-2 ${readOnly ? 'pointer-events-none' : ''}`} 
+      onMouseLeave={() => setHovered(0)}
+    >
       {[1, 2, 3, 4, 5].map((star) => (
         <button
           key={star}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            handleRate(star);
+            if (!readOnly) handleRate(star);
           }}
-          onMouseEnter={() => setHovered(star)}
-          className={`relative p-0.5 transition-all duration-200 focus:outline-none active:scale-90 ${
-            !isLoaded ? "opacity-50 cursor-default" : "cursor-pointer hover:scale-110"
+          onMouseEnter={() => !readOnly && setHovered(star)}
+          className={`relative p-0.5 transition-all duration-200 focus:outline-none ${
+            !isLoaded 
+              ? "opacity-50 cursor-default" 
+              : readOnly 
+                ? "cursor-default" 
+                : "cursor-pointer hover:scale-110 active:scale-90"
           }`}
-          title={`Avaliar com ${star} estrelas`}
-          disabled={!isLoaded}
+          title={readOnly ? `Nota média: ${averageRating.toFixed(1)} estrelas` : `Avaliar com ${star} estrelas`}
+          disabled={!isLoaded || readOnly}
         >
           <Star
             className={`h-4 w-4 transition-colors duration-200 ${
