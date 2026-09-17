@@ -842,7 +842,7 @@ function Watch() {
                 >
                   <X className="h-4 w-4" />
                 </button>
-                <h3 className="text-xl font-bold font-display text-foreground mb-1 text-center">Compartilhar</h4>
+                <h3 className="text-xl font-bold font-display text-foreground mb-1 text-center">Compartilhar</h3>
                 <p className="text-xs text-muted-foreground text-center mb-6">Convide seus amigos para maratonar</p>
                 
                 <div className="grid grid-cols-4 gap-3 mb-6">
