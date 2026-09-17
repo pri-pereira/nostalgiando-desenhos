@@ -35,6 +35,7 @@ function CategoriaView() {
   const [activeCategoryId, setActiveCategoryId] = useState<string>(currentCategoryParam || "catalogo");
   const [shows, setShows] = useState<Show[]>(() => getCachedShows());
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<"az" | "recent">("az");
 
   useEffect(() => {
     setActiveCategoryId(currentCategoryParam || "catalogo");
@@ -97,11 +98,25 @@ function CategoriaView() {
       );
     }
 
-    // Classificação rigorosa por ordem alfabética (A a Z) dentro da categoria
+    // Classificação baseada na escolha do usuário
+    if (sortOrder === "recent") {
+      // Ordena por data decrescente; itens sem data vão para o final
+      return [...list].sort((a, b) => {
+        const timeA = (a as any).updatedAt ? new Date((a as any).updatedAt).getTime() : 0;
+        const timeB = (b as any).updatedAt ? new Date((b as any).updatedAt).getTime() : 0;
+        if (timeA !== timeB) {
+          return timeB - timeA;
+        }
+        // Fallback: se têm a mesma data (ou sem data), ordena por título
+        return (a?.title || "").localeCompare(b?.title || "", "pt-BR", { sensitivity: "base" });
+      });
+    }
+
+    // Padrão: Ordem alfabética (A a Z)
     return [...list].sort((a, b) =>
       (a?.title || "").localeCompare(b?.title || "", "pt-BR", { sensitivity: "base" })
     );
-  }, [shows, activeCategoryId, searchQuery]);
+  }, [shows, activeCategoryId, searchQuery, sortOrder]);
 
   return (
     <div className="min-h-screen bg-background pt-24 sm:pt-28 pb-16">
@@ -158,6 +173,31 @@ function CategoriaView() {
                   placeholder={`Buscar em ${currentCategory.label}...`}
                   className="h-12 w-full rounded-2xl border border-white/10 bg-secondary/50 pl-11 pr-4 text-base text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
                 />
+              </div>
+              
+              <div className="flex bg-secondary/40 rounded-2xl border border-white/10 p-1 shrink-0 h-12 overflow-hidden">
+                <button
+                  onClick={() => setSortOrder("az")}
+                  className={`flex-1 sm:px-4 flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all ${
+                    sortOrder === "az"
+                      ? "bg-primary text-primary-foreground shadow-sm scale-100"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5 scale-95"
+                  }`}
+                >
+                  <Filter className="h-4 w-4" />
+                  A-Z
+                </button>
+                <button
+                  onClick={() => setSortOrder("recent")}
+                  className={`flex-1 sm:px-4 flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all ${
+                    sortOrder === "recent"
+                      ? "bg-primary text-primary-foreground shadow-sm scale-100"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5 scale-95"
+                  }`}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Mais Recentes
+                </button>
               </div>
             </div>
 

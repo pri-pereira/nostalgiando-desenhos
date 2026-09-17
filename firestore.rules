@@ -19,15 +19,25 @@ service cloud.firestore {
     match /shows/{showId} {
       allow read: if true;
       allow write: if isAdmin();
+      
+      // Avaliações de estrelas: qualquer usuário autenticado pode criar/atualizar sua própria avaliação
+      match /ratings/{userId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Coleção de Perfis de Usuários
-    // - Usuários autenticados podem ler e gerenciar seus próprios dados
+    // - Usuários autenticados podem ler e gerenciar seus próprios dados e seus favoritos
     // - Administradores têm acesso total de leitura e escrita
     match /users/{userId} {
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      
+      match /favorites/{showId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Bloqueia qualquer outra coleção por padrão

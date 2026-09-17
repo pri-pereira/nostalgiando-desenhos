@@ -50,6 +50,12 @@ export const CATEGORIES = [
     description: "Desenhos imortais que dominavam as manhãs: Pica-Pau, Tom & Jerry, Popeye e mais.",
   },
   {
+    id: "series-tv-aberta",
+    label: "Séries da TV aberta",
+    shortLabel: "Séries",
+    description: "As séries live-action, sitcoms e clássicos da televisão aberta.",
+  },
+  {
     id: "tokusatsu",
     label: "Tokusatsu & Heróis Japoneses",
     shortLabel: "Tokusatsu",

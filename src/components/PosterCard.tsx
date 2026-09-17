@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Play } from "lucide-react";
 import type { Show } from "@/data/shows";
+import { StarRating } from "./StarRating";
+import { FavoriteButton } from "./FavoriteButton";
 
 export function PosterCard({ show }: { show: Show }) {
   return (
@@ -34,6 +36,11 @@ export function PosterCard({ show }: { show: Show }) {
         <span className="absolute top-2.5 left-2.5 rounded-lg bg-black/70 px-2 py-0.5 text-xs font-black tracking-wider text-white backdrop-blur-md shadow-sm border border-white/15">
           {show.year}
         </span>
+
+        {/* Botão de Favoritar */}
+        <div className="absolute top-2.5 right-2.5">
+          <FavoriteButton slug={show.slug} />
+        </div>
       </div>
 
       <div className="mt-2.5 px-1">
@@ -48,6 +55,11 @@ export function PosterCard({ show }: { show: Show }) {
             HD
           </span>
         </p>
+        
+        {/* Avaliação 5 Estrelas */}
+        <div className="mt-0.5 relative z-10" onClick={(e) => e.preventDefault()}>
+          <StarRating slug={show.slug} />
+        </div>
       </div>
     </Link>
   );
