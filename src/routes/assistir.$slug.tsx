@@ -738,16 +738,16 @@ function Watch() {
                   )}
 
                   {showPaywall && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/85 backdrop-blur-md animate-in fade-in duration-500">
-                      <div className="max-w-md text-center p-6">
-                        <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full bg-gradient-to-br from-primary/20 to-amber-600/20 border border-primary/30 shadow-[0_0_40px_rgba(217,119,6,0.2)]">
-                          <Lock className="h-9 w-9 text-primary" />
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/85 backdrop-blur-md animate-in fade-in duration-500 overflow-y-auto">
+                      <div className="max-w-md text-center p-4 sm:p-6 my-auto">
+                        <div className="mx-auto mb-3 sm:mb-5 grid h-12 w-12 sm:h-20 sm:w-20 place-items-center rounded-full bg-gradient-to-br from-primary/20 to-amber-600/20 border border-primary/30 shadow-[0_0_40px_rgba(217,119,6,0.2)]">
+                          <Lock className="h-6 w-6 sm:h-9 sm:w-9 text-primary" />
                         </div>
-                        <h3 className="font-display text-2xl font-bold text-foreground mb-2">Gostou do que viu?</h3>
-                        <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-                          Faça login ou crie sua conta <strong className="text-foreground">gratuita</strong> para continuar assistindo.
+                        <h3 className="font-display text-lg sm:text-2xl font-bold text-foreground mb-1.5 sm:mb-2">Gostou do que viu?</h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6 leading-relaxed max-w-[280px] sm:max-w-none mx-auto">
+                          Faça login ou crie sua conta para continuar assistindo.
                         </p>
-                        <Link to="/login" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-gradient-to-r from-primary to-amber-600 text-primary-foreground font-bold text-sm">
+                        <Link to="/login" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3.5 rounded-full bg-gradient-to-r from-primary to-amber-600 text-primary-foreground font-bold text-xs sm:text-sm">
                           <LogIn className="h-4 w-4" /> Entrar / Criar Conta
                         </Link>
                       </div>
@@ -796,29 +796,33 @@ function Watch() {
                   </div>
                   <h1 className="mt-1 font-display text-xl sm:text-2xl font-bold text-foreground">{episode.title}</h1>
                 </div>
-                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0">
-                  <button onClick={handlePrev} disabled={current === 0} className="h-10 px-3 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold hover:bg-secondary disabled:opacity-40 cursor-pointer">
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button onClick={handleNext} disabled={current === episodesList.length - 1} className="h-10 px-3 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold hover:bg-secondary disabled:opacity-40 cursor-pointer">
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                  <button onClick={() => setInList(!inList)} className="h-10 px-3 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
-                    {inList ? <Check className="h-4 w-4 text-emerald-400" /> : <Plus className="h-4 w-4" />} Lista
-                  </button>
-                  <button onClick={handleShare} className="h-10 px-3 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all w-[120px] sm:w-auto justify-center" title="Compartilhar Link">
-                    {copied ? (
-                      <>
-                        <Check className="h-4 w-4 text-emerald-400" />
-                        <span className="text-emerald-400">Copiado!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Share2 className="h-4 w-4" />
-                        <span className="hidden sm:inline">Compartilhar</span>
-                      </>
-                    )}
-                  </button>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button onClick={handlePrev} disabled={current === 0} className="flex-1 sm:flex-none h-10 px-4 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold hover:bg-secondary disabled:opacity-40 cursor-pointer flex items-center justify-center">
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button onClick={handleNext} disabled={current === episodesList.length - 1} className="flex-1 sm:flex-none h-10 px-4 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold hover:bg-secondary disabled:opacity-40 cursor-pointer flex items-center justify-center">
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button onClick={() => setInList(!inList)} className="flex-1 sm:flex-none h-10 px-4 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer justify-center">
+                      {inList ? <Check className="h-4 w-4 text-emerald-400" /> : <Plus className="h-4 w-4" />} Lista
+                    </button>
+                    <button onClick={handleShare} className="flex-1 sm:flex-none h-10 px-4 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all justify-center" title="Compartilhar Link">
+                      {copied ? (
+                        <>
+                          <Check className="h-4 w-4 text-emerald-400" />
+                          <span className="text-emerald-400">Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Share2 className="h-4 w-4" />
+                          <span>Compartilhar</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
 
