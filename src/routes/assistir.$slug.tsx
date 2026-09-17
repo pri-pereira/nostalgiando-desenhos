@@ -260,10 +260,7 @@ function Watch() {
             const lower = name.toLowerCase();
             return (
               lower.endsWith(".mp4") ||
-              lower.endsWith(".mkv") ||
               lower.endsWith(".webm") ||
-              lower.endsWith(".avi") ||
-              lower.endsWith(".ogv") ||
               lower.endsWith(".m4v")
             );
           };
@@ -286,9 +283,8 @@ function Watch() {
                 isVideoFile(f.name) ||
                 f.format === "h.264" ||
                 f.format === "MPEG4" ||
-                f.format === "Matroska" ||
                 f.format === "512Kb MPEG4" ||
-                (f.format && f.format.toLowerCase().includes("video"))
+                f.format === "WebM"
               );
             })
             .sort((a: any, b: any) =>
@@ -322,8 +318,10 @@ function Watch() {
               .replace(/hidratorrent\.com/gi, "")
               .trim();
 
-            const isNativeSupported = f.name.match(/\.(mp4|webm)$/i);
+            // Qualquer arquivo que chegou aqui já é compatível com web (MP4/WebM) por causa do filtro acima
             const encodedFileName = encodeURIComponent(f.name).replace(/%2F/g, "/");
+            // Se o arquivo tiver a extensão, ou se for formato MP4 do archive, podemos baixar direto e jogar no HTML5 Video.
+            const isNativeSupported = f.name.match(/\.(mp4|webm|m4v)$/i) || (f.format && f.format.toLowerCase().includes("mpeg4")) || (f.format && f.format.toLowerCase().includes("h.264"));
             const videoUrl = isNativeSupported
               ? `https://archive.org/download/${safeId}/${encodedFileName}`
               : `https://archive.org/embed/${safeId}/${encodedFileName}`;
@@ -672,7 +670,7 @@ function Watch() {
                 </div>
               ) : episode.videoUrl ? (
                 <>
-                  {(episode.videoUrl.toLowerCase().includes(".mp4") || episode.videoUrl.toLowerCase().includes(".webm")) ? (
+                  {episode.videoUrl.includes("/download/") ? (
                     <video
                       key={episode.id}
                       ref={videoRef}
