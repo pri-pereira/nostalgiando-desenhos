@@ -529,7 +529,19 @@ function Watch() {
 
   const handleShare = () => {
     if (typeof window !== "undefined") {
-      navigator.clipboard?.writeText(window.location.href);
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(window.location.href);
+      } else {
+        // Fallback básico caso o navegador bloqueie a API
+        const textArea = document.createElement("textarea");
+        textArea.value = window.location.href;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand("copy");
+        } catch (err) {}
+        document.body.removeChild(textArea);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     }
@@ -777,8 +789,18 @@ function Watch() {
                   <button onClick={() => setInList(!inList)} className="h-10 px-3 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
                     {inList ? <Check className="h-4 w-4 text-emerald-400" /> : <Plus className="h-4 w-4" />} Lista
                   </button>
-                  <button onClick={handleShare} className="h-10 px-3 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold cursor-pointer" title="Compartilhar Link">
-                    <Share2 className="h-4 w-4" />
+                  <button onClick={handleShare} className="h-10 px-3 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all w-[120px] sm:w-auto justify-center" title="Compartilhar Link">
+                    {copied ? (
+                      <>
+                        <Check className="h-4 w-4 text-emerald-400" />
+                        <span className="text-emerald-400">Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="h-4 w-4" />
+                        <span className="hidden sm:inline">Compartilhar</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
