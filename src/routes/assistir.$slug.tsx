@@ -322,11 +322,9 @@ function Watch() {
               .replace(/hidratorrent\.com/gi, "")
               .trim();
 
-            const isMp4OrWebm =
-              f.name.toLowerCase().endsWith(".mp4") || f.name.toLowerCase().endsWith(".webm");
-
+            const isVideoFormat = f.name.match(/\.(mp4|mkv|avi|webm|ogv|m4v)$/i);
             const encodedFileName = encodeURIComponent(f.name).replace(/%2F/g, "/");
-            const videoUrl = isMp4OrWebm
+            const videoUrl = isVideoFormat
               ? `https://archive.org/download/${safeId}/${encodedFileName}`
               : `https://archive.org/embed/${safeId}/${encodedFileName}`;
 
@@ -674,7 +672,7 @@ function Watch() {
                 </div>
               ) : episode.videoUrl ? (
                 <>
-                  {(episode.videoUrl.toLowerCase().includes(".mp4") || episode.videoUrl.toLowerCase().includes(".webm")) ? (
+                  {(episode.videoUrl.match(/\.(mp4|mkv|avi|webm|ogv|m4v)/i) || episode.videoUrl.includes("/download/")) ? (
                     <video
                       key={episode.id}
                       ref={videoRef}
