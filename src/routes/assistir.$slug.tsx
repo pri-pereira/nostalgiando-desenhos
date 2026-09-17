@@ -24,6 +24,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { PosterCard } from "@/components/PosterCard";
 import { CategoriesNavPanel } from "@/components/CategoriesNavPanel";
 import { StarRating } from "@/components/StarRating";
+import { CommentsSection } from "@/components/CommentsSection";
 import { getShow, getStaticShow, getCachedShows, getAllShows, type Episode, type Show } from "@/data/shows";
 import { useAuth } from "@/lib/authContext";
 import {
@@ -834,6 +835,9 @@ function Watch() {
                 <StarRating slug={show.slug} readOnly={false} />
               </div>
             </div>
+            
+            {/* Seção de Comentários (Youtube Style) */}
+            <CommentsSection slug={show.slug} />
           </div>
 
           {/* Modal de Compartilhamento (Custom) */}
