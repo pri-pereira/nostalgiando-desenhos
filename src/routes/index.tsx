@@ -34,10 +34,26 @@ function Home() {
   const [allShows, setAllShows] = useState<Show[]>(() => getCachedShows());
   const [clientShelves, setClientShelves] = useState<any[]>(() => {
     const cached = getCachedShows();
-    return CATEGORIES.filter((c) => c.id !== "todos").map((c) => ({
+    
+    // Prateleira de Mais Recentes
+    const recentShelf = {
+      id: "recentes",
+      label: "Adicionados Recentemente",
+      description: "As últimas novidades e clássicos que acabaram de chegar ao acervo.",
+      shows: [...cached].sort((a, b) => {
+        const timeA = (a as any).updatedAt ? new Date((a as any).updatedAt).getTime() : 0;
+        const timeB = (b as any).updatedAt ? new Date((b as any).updatedAt).getTime() : 0;
+        if (timeA !== timeB) return timeB - timeA;
+        return cached.indexOf(b) - cached.indexOf(a); // Mais novos no topo/início
+      }).slice(0, 15) // Pega os 15 mais recentes
+    };
+
+    const categoriesShelves = CATEGORIES.filter((c) => c.id !== "todos").map((c) => ({
       ...c,
       shows: c.id === "catalogo" ? cached : cached.filter((s) => s.category === c.id),
     }));
+
+    return [recentShelf, ...categoriesShelves];
   });
 
   useEffect(() => {
@@ -66,12 +82,25 @@ function Home() {
   useEffect(() => {
     const updateShelvesFromList = (showsList: Show[]) => {
       setAllShows(showsList);
-      setClientShelves(
-        CATEGORIES.filter((c) => c.id !== "todos").map((c) => ({
-          ...c,
-          shows: c.id === "catalogo" ? showsList : showsList.filter((s) => s.category === c.id),
-        }))
-      );
+      
+      const recentShelf = {
+        id: "recentes",
+        label: "Adicionados Recentemente",
+        description: "As últimas novidades e clássicos que acabaram de chegar ao acervo.",
+        shows: [...showsList].sort((a, b) => {
+          const timeA = (a as any).updatedAt ? new Date((a as any).updatedAt).getTime() : 0;
+          const timeB = (b as any).updatedAt ? new Date((b as any).updatedAt).getTime() : 0;
+          if (timeA !== timeB) return timeB - timeA;
+          return showsList.indexOf(b) - showsList.indexOf(a);
+        }).slice(0, 15)
+      };
+
+      const categoriesShelves = CATEGORIES.filter((c) => c.id !== "todos").map((c) => ({
+        ...c,
+        shows: c.id === "catalogo" ? showsList : showsList.filter((s) => s.category === c.id),
+      }));
+
+      setClientShelves([recentShelf, ...categoriesShelves]);
     };
 
     const loadInitialData = async () => {

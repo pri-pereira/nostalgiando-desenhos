@@ -101,14 +101,18 @@ function CategoriaView() {
     // Classificação baseada na escolha do usuário
     if (sortOrder === "recent") {
       // Ordena por data decrescente; itens sem data vão para o final
-      return [...list].sort((a, b) => {
+      // Se tivermos que ordenar sem data, vamos preservar a ordem reversa (útil para dados mockados em que os últimos estão no final do array)
+      const listCopy = [...list];
+      return listCopy.sort((a, b) => {
         const timeA = (a as any).updatedAt ? new Date((a as any).updatedAt).getTime() : 0;
         const timeB = (b as any).updatedAt ? new Date((b as any).updatedAt).getTime() : 0;
         if (timeA !== timeB) {
-          return timeB - timeA;
+          return timeB - timeA; // Maior timestamp vem primeiro
         }
-        // Fallback: se têm a mesma data (ou sem data), ordena por título
-        return (a?.title || "").localeCompare(b?.title || "", "pt-BR", { sensitivity: "base" });
+        // Se ambos não têm data (ou a mesma data), mantemos a ordem de array reverso
+        const indexA = list.indexOf(a);
+        const indexB = list.indexOf(b);
+        return indexB - indexA;
       });
     }
 
