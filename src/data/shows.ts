@@ -56,6 +56,12 @@ export const CATEGORIES = [
     description: "As séries live-action, sitcoms e clássicos da televisão aberta.",
   },
   {
+    id: "desenhos-japoneses",
+    label: "Desenhos Japoneses",
+    shortLabel: "Animes",
+    description: "Animes e clássicos da animação japonesa que marcaram época: Cavaleiros do Zodíaco, Dragon Ball, Yu Yu Hakusho, Speed Racer e mais.",
+  },
+  {
     id: "tokusatsu",
     label: "Tokusatsu & Heróis Japoneses",
     shortLabel: "Tokusatsu",

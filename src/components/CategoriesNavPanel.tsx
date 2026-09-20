@@ -13,6 +13,7 @@ import {
   Play,
   Clock,
   Sparkles,
+  Flame,
 } from "lucide-react";
 import { CATEGORIES, type Show } from "@/data/shows";
 import { formatTime, type WatchHistoryItem } from "@/lib/watchHistory";
@@ -27,6 +28,8 @@ interface CategoriesNavPanelProps {
 const CATEGORY_ICONS: Record<string, any> = {
   catalogo: Film,
   "classicos-tv-aberta": Tv,
+  "series-tv-aberta": Tv,
+  "desenhos-japoneses": Flame,
   tokusatsu: Shield,
   "bau-hanna-barbera": Smile,
   "aventura-fantasia": Sword,

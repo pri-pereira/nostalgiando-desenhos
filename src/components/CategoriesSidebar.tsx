@@ -13,6 +13,7 @@ import {
   Shield,
   Smile,
   Play,
+  Flame,
 } from "lucide-react";
 import { CATEGORIES, getCachedShows, getAllShows, type Show, type CategoryId } from "@/data/shows";
 
@@ -26,6 +27,8 @@ interface CategoriesSidebarProps {
 const CATEGORY_ICONS: Record<string, any> = {
   catalogo: Film,
   "classicos-tv-aberta": Tv,
+  "series-tv-aberta": Tv,
+  "desenhos-japoneses": Flame,
   tokusatsu: Shield,
   "bau-hanna-barbera": Smile,
   "aventura-fantasia": Sword,
