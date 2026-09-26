@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Search, Tv, Settings, LogIn, User, LogOut, ChevronDown } from "lucide-react";
+import { Search, Tv, Settings, LogIn, User, LogOut, ChevronDown, UserCircle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/lib/authContext";
 
@@ -72,7 +72,7 @@ export function SiteHeader() {
               title="Painel de Administração"
             >
               <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>ADM</span>
+              <span className="hidden sm:inline">ADM</span>
             </button>
 
             {/* Login / Usuário */}
@@ -97,14 +97,23 @@ export function SiteHeader() {
 
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-white/10 bg-card/95 backdrop-blur-2xl shadow-2xl p-2 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
-                    <div className="px-3.5 py-2.5 border-b border-border/60 mb-1">
-                      <p className="text-sm font-bold text-foreground truncate">{user.email}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Conta Conectada</p>
+                    <div className="px-3.5 py-2.5 border-b border-border/60 mb-2">
+                      <p className="text-sm font-bold text-foreground truncate">{user.displayName || user.email?.split("@")[0]}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{user.email}</p>
                     </div>
+
+                    <Link
+                      to="/perfil"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-foreground hover:bg-primary/10 hover:text-primary transition-all font-semibold cursor-pointer mb-1"
+                    >
+                      <UserCircle className="h-4 w-4" />
+                      Minha Conta / Perfil
+                    </Link>
 
                     <button
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm text-destructive hover:bg-destructive/10 transition-all font-semibold cursor-pointer"
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-destructive hover:bg-destructive/10 transition-all font-semibold cursor-pointer"
                     >
                       <LogOut className="h-4 w-4" />
                       Sair da Conta

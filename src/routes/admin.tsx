@@ -54,6 +54,7 @@ import {
 import { useAuth } from "@/lib/authContext";
 import {
   CATEGORIES,
+  saveCategories,
   type Show,
   type CategoryId,
   type ShowStorageResult,
@@ -2048,29 +2049,127 @@ function CategoriasView({
   shows: Show[];
   onSelectCategory: (catId: string) => void;
 }) {
+  const [categories, setCategories] = useState(CATEGORIES);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newCatLabel, setNewCatLabel] = useState("");
+  const [newCatDesc, setNewCatDesc] = useState("");
+
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail) {
+        setCategories([...e.detail]);
+      }
+    };
+    window.addEventListener("categories_updated", handleUpdate);
+    return () => window.removeEventListener("categories_updated", handleUpdate);
+  }, []);
+
+  const handleAddCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatLabel.trim()) return;
+    const id = newCatLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    if (categories.some((c) => c.id === id)) {
+      toast.error("Uma categoria com este nome já existe.");
+      return;
+    }
+    const newCategory = {
+      id,
+      label: newCatLabel,
+      shortLabel: newCatLabel,
+      description: newCatDesc,
+    };
+    const newCategories = [...categories, newCategory];
+    saveCategories(newCategories);
+    setCategories(newCategories);
+    setNewCatLabel("");
+    setNewCatDesc("");
+    setIsAdding(false);
+    toast.success(`Categoria "${newCatLabel}" adicionada com sucesso!`);
+  };
+
+  const handleRemoveCategory = (idToRemove: string) => {
+    if (confirm("Tem certeza que deseja remover esta categoria? Os títulos nela precisarão ser reatribuídos.")) {
+      const newCategories = categories.filter((c) => c.id !== idToRemove);
+      saveCategories(newCategories);
+      setCategories(newCategories);
+      toast.success("Categoria removida.");
+    }
+  };
+
+  const defaultCategoryIds = ["todos", "catalogo", "classicos-tv-aberta", "series-tv-aberta", "desenhos-japoneses", "tokusatsu", "bau-hanna-barbera", "aventura-fantasia"];
+
   const categoryStats = useMemo(() => {
-    return CATEGORIES.filter((c) => c.id !== "todos").map((cat) => {
+    return categories.filter((c) => c.id !== "todos").map((cat) => {
       const categoryShows = shows.filter((s) => s.category === cat.id);
       return { ...cat, count: categoryShows.length, shows: categoryShows };
     });
-  }, [shows]);
+  }, [shows, categories]);
 
   const totalShows = shows.length;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div>
-        <h3 className="font-display text-lg sm:text-xl font-bold text-foreground">
-          Categorias & Prateleiras
-        </h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          Distribuição dos {totalShows} títulos pelas prateleiras do site
-        </p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="font-display text-lg sm:text-xl font-bold text-foreground">
+            Categorias & Prateleiras
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Distribuição dos {totalShows} títulos pelas prateleiras do site
+          </p>
+        </div>
+        <button
+          onClick={() => setIsAdding(!isAdding)}
+          className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 font-bold text-primary-foreground transition-all hover:bg-primary/90 active:scale-95"
+        >
+          {isAdding ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+          {isAdding ? "Cancelar" : "Nova Categoria"}
+        </button>
       </div>
+
+      {isAdding && (
+        <form onSubmit={handleAddCategory} className="rounded-2xl border border-white/10 bg-card p-5 space-y-4">
+          <h4 className="font-display text-base font-bold">Adicionar Nova Categoria</h4>
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase">Nome da Categoria</label>
+              <input
+                type="text"
+                value={newCatLabel}
+                onChange={(e) => setNewCatLabel(e.target.value)}
+                placeholder="Ex: Animações 3D"
+                className="w-full h-11 rounded-xl border border-white/10 bg-secondary/50 px-4 text-sm text-foreground focus:border-primary/50 focus:bg-secondary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase">Descrição</label>
+              <textarea
+                value={newCatDesc}
+                onChange={(e) => setNewCatDesc(e.target.value)}
+                placeholder="Breve descrição da prateleira..."
+                className="w-full rounded-xl border border-white/10 bg-secondary/50 px-4 py-3 text-sm text-foreground focus:border-primary/50 focus:bg-secondary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none h-20"
+                required
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="rounded-xl bg-primary px-5 py-2.5 font-bold text-primary-foreground shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] hover:shadow-[0_0_25px_rgba(var(--primary-rgb),0.5)] transition-all flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              Salvar Categoria
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {categoryStats.map((cat) => {
           const percentage = totalShows > 0 ? Math.round((cat.count / totalShows) * 100) : 0;
+          const isDefault = defaultCategoryIds.includes(cat.id);
+          
           return (
             <div
               key={cat.id}
@@ -2078,12 +2177,24 @@ function CategoriasView({
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">
+                  <h4 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
                     {cat.label}
+                    {!isDefault && <span className="text-[10px] uppercase bg-secondary px-1.5 py-0.5 rounded-sm text-muted-foreground font-semibold">Personalizada</span>}
                   </h4>
-                  <span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary border border-primary/20">
-                    {cat.count} título{cat.count !== 1 ? "s" : ""}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary border border-primary/20">
+                      {cat.count} título{cat.count !== 1 ? "s" : ""}
+                    </span>
+                    {!isDefault && (
+                      <button 
+                        onClick={() => handleRemoveCategory(cat.id)}
+                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                        title="Remover Categoria"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <p className="text-sm text-muted-foreground mb-4 line-clamp-2">

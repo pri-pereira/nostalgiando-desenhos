@@ -35,7 +35,14 @@ export type Show = {
   episodes: Episode[];
 };
 
-export const CATEGORIES = [
+export type Category = {
+  id: string;
+  label: string;
+  shortLabel: string;
+  description: string;
+};
+
+export const DEFAULT_CATEGORIES: Category[] = [
   { id: "todos", label: "Todos", shortLabel: "Todos", description: "Todos os clássicos reunidos" },
   {
     id: "catalogo",
@@ -79,9 +86,50 @@ export const CATEGORIES = [
     shortLabel: "Aventura & Fantasia",
     description: "Guerreiros, monstros e bárbaros antigos: Caverna do Dragão, Thundarr, He-Man e ThunderCats.",
   },
-] as const;
+];
 
-export type CategoryId = (typeof CATEGORIES)[number]["id"];
+export let CATEGORIES: Category[] = [...DEFAULT_CATEGORIES];
+
+const CATEGORIES_STORAGE_KEY = "nostalgiando_categories";
+
+const notifyCategoriesUpdated = () => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("categories_updated", { detail: CATEGORIES }));
+  }
+};
+
+export const getCachedCategories = (): Category[] => {
+  if (typeof window === "undefined") return DEFAULT_CATEGORIES;
+  try {
+    const saved = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        CATEGORIES = parsed;
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao ler cache de categorias:", e);
+  }
+  CATEGORIES = [...DEFAULT_CATEGORIES];
+  return CATEGORIES;
+};
+
+// initialize categories on load
+if (typeof window !== "undefined") {
+  getCachedCategories();
+}
+
+export const saveCategories = (newCategories: Category[]) => {
+  CATEGORIES = newCategories;
+  if (typeof window !== "undefined") {
+    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(CATEGORIES));
+    notifyCategoriesUpdated();
+  }
+};
+
+export type CategoryId = string;
 
 const ep = (n: number, title: string, synopsis: string, duration = "22 min", videoUrl = ""): Episode => ({
   id: `ep-${n}`,
