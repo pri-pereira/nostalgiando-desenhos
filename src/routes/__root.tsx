@@ -108,6 +108,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
       { rel: "manifest", href: "/manifest.json" },
     ],
+    scripts: [
+      {
+        src: "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1",
+        defer: true,
+      },
+    ],
   }),
 
   shellComponent: RootShell,

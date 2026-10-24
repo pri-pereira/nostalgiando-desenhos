@@ -19,12 +19,15 @@ import {
   RotateCcw,
   Search,
   X,
+  Cast,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PosterCard } from "@/components/PosterCard";
 import { CategoriesNavPanel } from "@/components/CategoriesNavPanel";
 import { StarRating } from "@/components/StarRating";
 import { CommentsSection } from "@/components/CommentsSection";
+import { TvCastModal } from "@/components/TvCastModal";
+import { useScreenCast } from "@/hooks/useScreenCast";
 import { getShow, getStaticShow, getCachedShows, getAllShows, type Episode, type Show } from "@/data/shows";
 import { useAuth } from "@/lib/authContext";
 import {
@@ -371,6 +374,53 @@ function Watch() {
     videoUrl: ""
   }));
 
+  // Detecção de formato direto de vídeo (para reprodução nativa e espelhamento)
+  const isDirectVideo = useMemo(() => {
+    if (!episode?.videoUrl) return false;
+    const url = episode.videoUrl.toLowerCase();
+    return (
+      url.includes("/download/") ||
+      url.endsWith(".mp4") ||
+      url.endsWith(".webm") ||
+      url.endsWith(".m4v") ||
+      url.includes(".mp4?") ||
+      url.includes(".webm?") ||
+      (url.includes("archive.org/embed/") && !!url.match(/\.(mp4|webm|m4v)/i))
+    );
+  }, [episode?.videoUrl]);
+
+  const directVideoSrc = useMemo(() => {
+    if (!episode?.videoUrl) return "";
+    if (episode.videoUrl.includes("archive.org/embed/")) {
+      return episode.videoUrl.replace("/embed/", "/download/");
+    }
+    return episode.videoUrl;
+  }, [episode?.videoUrl]);
+
+  // Hook de espelhamento de tela e transmissão na Smart TV
+  const [isCastModalOpen, setIsCastModalOpen] = useState(false);
+  const {
+    castState,
+    targetDeviceName,
+    triggerCast,
+    triggerScreenShare,
+    disconnect: disconnectCast,
+  } = useScreenCast({
+    videoRef,
+    videoTitle: episode?.title,
+    videoUrl: directVideoSrc || episode?.videoUrl,
+    posterUrl: show?.poster,
+  });
+
+  const handleOpenCast = useCallback(async () => {
+    setIsCastModalOpen(true);
+    try {
+      await triggerCast();
+    } catch {
+      // Caso o dispositivo precise de instruções manuais, o modal segue aberto
+    }
+  }, [triggerCast]);
+
   // Sincroniza o episódio atual e restaura o ponto de onde o usuário parou
   useEffect(() => {
     if (show && episode && episode.id && episode.id !== "empty") {
@@ -670,14 +720,20 @@ function Watch() {
                 </div>
               ) : episode.videoUrl ? (
                 <>
-                  {episode.videoUrl.includes("/download/") ? (
+                  {isDirectVideo ? (
                     <video
                       key={episode.id}
                       ref={videoRef}
-                      src={episode.videoUrl.replace("/embed/", "/download/")}
+                      src={directVideoSrc}
                       controls
                       autoPlay
                       playsInline
+                      {...({
+                        "x-webkit-airplay": "allow",
+                        "webkit-playsinline": "true",
+                      } as any)}
+                      disableRemotePlayback={false}
+                      controlsList="nodownload"
                       onLoadedMetadata={handleLoadedMetadata}
                       onCanPlay={handleLoadedMetadata}
                       onTimeUpdate={handleTimeUpdate}
@@ -691,15 +747,36 @@ function Watch() {
                       key={episode.id}
                       src={episode.videoUrl}
                       title={`${show.title} - ${episode.title}`}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; presentation; remote-playback; display-capture"
                       allowFullScreen
                       className="absolute inset-0 h-full w-full border-0 bg-black"
                     />
                   )}
 
+                  {/* Botão Flutuante de Espelhar na TV no Player */}
+                  <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+                    <button
+                      onClick={handleOpenCast}
+                      className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-md transition-all cursor-pointer shadow-xl active:scale-95 ${
+                        castState === "connected"
+                          ? "bg-emerald-500/90 hover:bg-emerald-400 text-black font-bold border border-emerald-300 shadow-emerald-500/30"
+                          : "bg-black/75 hover:bg-black/95 text-amber-300 hover:text-amber-200 border border-amber-500/40 hover:border-amber-400 shadow-amber-950/40"
+                      }`}
+                      title="Espelhar reprodução na sua Smart TV, Chromecast ou AirPlay"
+                    >
+                      <Cast className={`h-3.5 w-3.5 ${castState === "connected" ? "animate-pulse" : "group-hover:scale-110"} transition-transform`} />
+                      <span className="text-[11px] font-bold hidden sm:inline">
+                        {castState === "connected" ? "Na TV" : "Espelhar na TV"}
+                      </span>
+                      {castState === "connected" && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-black animate-ping" />
+                      )}
+                    </button>
+                  </div>
+
                   {/* Banner Flutuante Estilo Netflix: Continuando de onde parou */}
                   {resumeBanner && (
-                    <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between gap-3 rounded-2xl bg-black/90 backdrop-blur-md border border-primary/40 px-3.5 py-2.5 text-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="absolute top-3 left-3 right-14 sm:right-36 z-30 flex items-center justify-between gap-3 rounded-2xl bg-black/90 backdrop-blur-md border border-primary/40 px-3.5 py-2.5 text-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/20 text-primary border border-primary/30 shrink-0">
                           <RotateCcw className="h-3.5 w-3.5" />
@@ -818,6 +895,18 @@ function Watch() {
                           <span>Compartilhar</span>
                         </>
                       )}
+                    </button>
+                    <button
+                      onClick={handleOpenCast}
+                      className={`flex-1 sm:flex-none h-10 px-3.5 rounded-xl border text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
+                        castState === "connected"
+                          ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
+                          : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 shadow-sm"
+                      }`}
+                      title="Espelhar reprodução na sua Smart TV, Chromecast ou AirPlay"
+                    >
+                      <Cast className="h-4 w-4 shrink-0 text-amber-400" />
+                      <span>{castState === "connected" ? "Na TV" : "Espelhar na TV"}</span>
                     </button>
                   </div>
                 </div>
@@ -1110,6 +1199,19 @@ function Watch() {
       <footer className="mt-16 border-t border-border py-8 text-center text-xs text-muted-foreground">
         Nostalgiando Desenhos · seu portal definitivo de animações retrô.
       </footer>
+
+      {/* Modal de Espelhamento de Tela / Transmissão para Smart TV */}
+      <TvCastModal
+        isOpen={isCastModalOpen}
+        onClose={() => setIsCastModalOpen(false)}
+        onTriggerCast={triggerCast}
+        onTriggerScreenShare={triggerScreenShare}
+        castState={castState}
+        targetDeviceName={targetDeviceName}
+        onDisconnect={disconnectCast}
+        showTitle={show?.title}
+        episodeTitle={episode?.title}
+      />
     </div>
   );
 }
