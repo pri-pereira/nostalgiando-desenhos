@@ -221,98 +221,98 @@
       {
         "synopsis": "Seis jovens chegam ao Reino e recebem suas armas mágicas do Mestre dos Magos para enfrentar o temível Vingador.",
         "videoUrl": "",
-        "title": "Episódio 1: A Noite Sem Amanhã",
         "duration": "21:45",
+        "title": "Episódio 1: A Noite Sem Amanhã",
         "id": "ep-1",
         "number": 1
       },
       {
         "number": 2,
-        "id": "ep-2",
-        "title": "Episódio 2: O Olho do Observador",
+        "synopsis": "A turma precisa encontrar o mítico Observador na esperança de descobrir um portal de volta para o mundo real.",
         "videoUrl": "",
         "duration": "22:10",
-        "synopsis": "A turma precisa encontrar o mítico Observador na esperança de descobrir um portal de volta para o mundo real."
+        "title": "Episódio 2: O Olho do Observador",
+        "id": "ep-2"
       },
       {
-        "title": "Episódio 3: O Salão dos Ossos",
-        "synopsis": "O Mestre dos Magos guia os jovens heróis até o Salão dos Ossos para recarregar a energia vital das armas mágicas.",
         "duration": "21:50",
-        "videoUrl": "",
+        "id": "ep-3",
         "number": 3,
-        "id": "ep-3"
+        "synopsis": "O Mestre dos Magos guia os jovens heróis até o Salão dos Ossos para recarregar a energia vital das armas mágicas.",
+        "videoUrl": "",
+        "title": "Episódio 3: O Salão dos Ossos"
       },
       {
         "id": "ep-4",
-        "duration": "22:05",
         "videoUrl": "",
-        "number": 4,
         "synopsis": "Bobby, Sheila e a turma lutam contra os caçadores do Vingador para salvar a pequena Uni e sua manada.",
-        "title": "Episódio 4: O Vale dos Unicórnios"
+        "duration": "22:05",
+        "title": "Episódio 4: O Vale dos Unicórnios",
+        "number": 4
       },
       {
-        "number": 5,
         "title": "Episódio 5: Em Busca do Mestre dos Magos",
         "id": "ep-5",
+        "number": 5,
         "synopsis": "O Mestre dos Magos é capturado e os seis heróis embarcam em uma perigosa missão até o pântano negro.",
-        "duration": "22:15",
-        "videoUrl": ""
+        "videoUrl": "",
+        "duration": "22:15"
       },
       {
-        "number": 6,
-        "id": "ep-6",
-        "duration": "21:30",
+        "title": "Episódio 6: A Prisão da Ilusão",
         "videoUrl": "",
         "synopsis": "Uma misteriosa ilusão mágica no pântano testa os maiores desejos e a coragem de cada jovem.",
-        "title": "Episódio 6: A Prisão da Ilusão"
+        "id": "ep-6",
+        "number": 6,
+        "duration": "21:30"
       },
       {
+        "title": "Episódio 7: O Jardim de Zinn",
+        "duration": "22:20",
         "number": 7,
         "id": "ep-7",
-        "duration": "22:20",
         "videoUrl": "",
-        "synopsis": "Bobby é envenenado por um monstro espinhoso e a turma precisa encontrar a cura na estufa da Rainha Zinn.",
-        "title": "Episódio 7: O Jardim de Zinn"
+        "synopsis": "Bobby é envenenado por um monstro espinhoso e a turma precisa encontrar a cura na estufa da Rainha Zinn."
       },
       {
-        "title": "Episódio 8: O Servo do Mal",
         "number": 8,
+        "title": "Episódio 8: O Servo do Mal",
+        "synopsis": "Karak, o carcereiro de Venger, aprisiona os heróis na Prisão da Agonia.",
+        "videoUrl": "",
         "id": "ep-8",
-        "videoUrl": "",
-        "duration": "21:55",
-        "synopsis": "Karak, o carcereiro de Venger, aprisiona os heróis na Prisão da Agonia."
+        "duration": "21:55"
       },
       {
-        "number": 9,
-        "id": "ep-9",
-        "videoUrl": "",
         "duration": "22:12",
+        "id": "ep-9",
         "synopsis": "Um gigante celestial oferece uma saída do reino caso os heróis resgatem sua princesa aprisionada.",
-        "title": "Episódio 9: O Castelo nas Nuvens"
+        "videoUrl": "",
+        "title": "Episódio 9: O Castelo nas Nuvens",
+        "number": 9
       },
       {
+        "videoUrl": "",
         "synopsis": "Presto recebe os poderes do Mestre dos Magos por um dia, mas descobre o peso da responsabilidade.",
-        "id": "ep-10",
-        "videoUrl": "",
         "duration": "22:40",
+        "title": "Episódio 10: O Dia do Mestre dos Magos",
         "number": 10,
-        "title": "Episódio 10: O Dia do Mestre dos Magos"
+        "id": "ep-10"
       },
       {
-        "title": "Episódio 11: A Cidade à Margem da Meia-Noite",
-        "id": "ep-11",
-        "videoUrl": "",
         "duration": "22:00",
+        "videoUrl": "",
+        "synopsis": "Crianças do Reino desaparecem sob a influência do monstro da Meia-Noite e Hank lidera o resgate.",
         "number": 11,
-        "synopsis": "Crianças do Reino desaparecem sob a influência do monstro da Meia-Noite e Hank lidera o resgate."
+        "id": "ep-11",
+        "title": "Episódio 11: A Cidade à Margem da Meia-Noite"
       },
       {
-        "id": "ep-12",
-        "title": "Episódio 12: O Traidor",
+        "number": 12,
         "duration": "21:50",
-        "videoUrl": "",
+        "title": "Episódio 12: O Traidor",
+        "id": "ep-12",
         "synopsis": "Eric é enfeitiçado e parece trair seus amigos em troca de uma passagem garantida para casa.",
-        "number": 12
+        "videoUrl": ""
       }
     ]
   },
@@ -326,68 +326,68 @@
     "archiveId": "1986-comando-estelar-flashman-s-01",
     "episodes": [
       {
-        "number": 1,
-        "duration": "22:50",
-        "videoUrl": "",
-        "synopsis": "Os cinco guerreiros Flashman aterrissam de volta ao seu planeta de origem.",
         "title": "Episódio 1: A Terra em Perigo",
-        "id": "ep-1"
+        "id": "ep-1",
+        "duration": "22:50",
+        "number": 1,
+        "videoUrl": "",
+        "synopsis": "Os cinco guerreiros Flashman aterrissam de volta ao seu planeta de origem."
       },
       {
-        "number": 2,
-        "title": "Episódio 2: O Monstro Biológico",
-        "id": "ep-2",
         "synopsis": "Doutor Lee Keflen cria uma besta genética para destruir a metrópole.",
+        "videoUrl": "",
         "duration": "22:40",
-        "videoUrl": ""
+        "id": "ep-2",
+        "number": 2,
+        "title": "Episódio 2: O Monstro Biológico"
       },
       {
-        "number": 3,
-        "id": "ep-3",
-        "duration": "23:10",
         "videoUrl": "",
         "synopsis": "O poderoso robô gigante entra em ação com a Espada Cósmica.",
-        "title": "Episódio 3: Flash King em Combate"
+        "duration": "23:10",
+        "title": "Episódio 3: Flash King em Combate",
+        "number": 3,
+        "id": "ep-3"
       },
       {
-        "synopsis": "Os heróis descobrem novas combinações de poder para seus trajes.",
+        "title": "Episódio 4: O Prisma de Cristal",
         "duration": "22:35",
-        "videoUrl": "",
-        "id": "ep-4",
         "number": 4,
-        "title": "Episódio 4: O Prisma de Cristal"
+        "synopsis": "Os heróis descobrem novas combinações de poder para seus trajes.",
+        "videoUrl": "",
+        "id": "ep-4"
       },
       {
-        "number": 5,
-        "id": "ep-5",
         "title": "Episódio 5: O Segredo das Origens",
+        "id": "ep-5",
+        "number": 5,
         "synopsis": "Cada membro do esquadrão busca pistas sobre suas famílias humanas.",
-        "duration": "23:00",
+        "videoUrl": "",
+        "duration": "23:00"
+      },
+      {
+        "title": "Episódio 6: A Invasão de Mess",
+        "duration": "22:45",
+        "number": 6,
+        "id": "ep-6",
+        "synopsis": "Monstros quiméricos atacam as usinas de energia da cidade.",
         "videoUrl": ""
       },
       {
-        "id": "ep-6",
-        "synopsis": "Monstros quiméricos atacam as usinas de energia da cidade.",
+        "synopsis": "Uma batalha coreografada contra os generais do imperador La Deus.",
         "videoUrl": "",
-        "duration": "22:45",
-        "title": "Episódio 6: A Invasão de Mess",
-        "number": 6
-      },
-      {
         "id": "ep-7",
-        "number": 7,
         "title": "Episódio 7: A Dança das Espadas",
-        "videoUrl": "",
         "duration": "23:15",
-        "synopsis": "Uma batalha coreografada contra os generais do imperador La Deus."
+        "number": 7
       },
       {
-        "id": "ep-8",
-        "number": 8,
-        "title": "Episódio 8: Adeus, Planeta Terra",
         "videoUrl": "",
+        "synopsis": "O dramático e inesquecível desfecho da saga dos heróis espaciais.",
         "duration": "23:50",
-        "synopsis": "O dramático e inesquecível desfecho da saga dos heróis espaciais."
+        "title": "Episódio 8: Adeus, Planeta Terra",
+        "number": 8,
+        "id": "ep-8"
       }
     ]
   },
@@ -611,68 +611,68 @@
     "archiveId": "He-ManeosDefensoresdoUniversoDublado",
     "episodes": [
       {
-        "synopsis": "O Esqueleto planeja invadir o castelo ancestral usando um artefato dimensional.",
         "duration": "22:00",
         "videoUrl": "",
+        "synopsis": "O Esqueleto planeja invadir o castelo ancestral usando um artefato dimensional.",
+        "title": "Episódio 1: O Raio Cósmico de Grayskull",
         "id": "ep-1",
-        "number": 1,
-        "title": "Episódio 1: O Raio Cósmico de Grayskull"
+        "number": 1
       },
       {
-        "number": 2,
         "id": "ep-2",
-        "videoUrl": "",
         "duration": "21:50",
+        "title": "Episódio 2: O Dragão da Montanha",
         "synopsis": "He-Man e o Gato Guerreiro enfrentam uma criatura ancestral nas profundezas de Eternia.",
-        "title": "Episódio 2: O Dragão da Montanha"
+        "videoUrl": "",
+        "number": 2
       },
       {
-        "synopsis": "Mentor e Teela correm contra o tempo para quebrar um feitiço de Maligna.",
-        "title": "Episódio 3: A Maldição da Feiticeira",
-        "duration": "22:15",
-        "videoUrl": "",
         "id": "ep-3",
-        "number": 3
-      },
-      {
-        "title": "Episódio 4: A Invasão dos Homens-Serpente",
-        "id": "ep-4",
-        "number": 4,
-        "synopsis": "Uma raça subterrânea adormecida desperta ameaçando a Cidade Real.",
-        "duration": "22:10",
-        "videoUrl": ""
-      },
-      {
-        "id": "ep-5",
-        "title": "Episódio 5: O Segredo da Espada de Poder",
-        "synopsis": "O Príncipe Adam descobre segredos ocultos sobre a forja de sua lâmina mística.",
+        "synopsis": "Mentor e Teela correm contra o tempo para quebrar um feitiço de Maligna.",
         "videoUrl": "",
-        "duration": "21:55",
-        "number": 5
+        "number": 3,
+        "duration": "22:15",
+        "title": "Episódio 3: A Maldição da Feiticeira"
       },
       {
-        "title": "Episódio 6: A Fuga da Montanha da Serpente",
-        "number": 6,
+        "id": "ep-4",
+        "title": "Episódio 4: A Invasão dos Homens-Serpente",
+        "duration": "22:10",
+        "number": 4,
+        "videoUrl": "",
+        "synopsis": "Uma raça subterrânea adormecida desperta ameaçando a Cidade Real."
+      },
+      {
+        "number": 5,
+        "title": "Episódio 5: O Segredo da Espada de Poder",
+        "videoUrl": "",
+        "synopsis": "O Príncipe Adam descobre segredos ocultos sobre a forja de sua lâmina mística.",
+        "id": "ep-5",
+        "duration": "21:55"
+      },
+      {
         "synopsis": "Gorpo se perde na fortaleza do Esqueleto e precisa ser resgatado.",
         "videoUrl": "",
+        "id": "ep-6",
         "duration": "22:05",
-        "id": "ep-6"
+        "title": "Episódio 6: A Fuga da Montanha da Serpente",
+        "number": 6
       },
       {
         "id": "ep-7",
         "title": "Episódio 7: O Cristal de Sevilha",
-        "number": 7,
         "duration": "21:45",
-        "videoUrl": "",
-        "synopsis": "Um artefato que multiplica a força do portador vira alvo de uma disputa feroz."
+        "number": 7,
+        "synopsis": "Um artefato que multiplica a força do portador vira alvo de uma disputa feroz.",
+        "videoUrl": ""
       },
       {
-        "synopsis": "O confronto épico definitivo nos portões do Castelo de Grayskull.",
-        "videoUrl": "",
-        "duration": "22:35",
         "number": 8,
         "title": "Episódio 8: O Duelo em Grayskull",
-        "id": "ep-8"
+        "id": "ep-8",
+        "duration": "22:35",
+        "videoUrl": "",
+        "synopsis": "O confronto épico definitivo nos portões do Castelo de Grayskull."
       }
     ]
   },
@@ -828,65 +828,65 @@
       {
         "number": 1,
         "id": "ep-1",
-        "videoUrl": "",
+        "title": "Episódio 1: A Sucessão da Espada Olímpica",
         "duration": "23:10",
-        "synopsis": "Touha recebe a lendária armadura ninja de seu mestre Tetsuzan Yamaji.",
-        "title": "Episódio 1: A Sucessão da Espada Olímpica"
+        "videoUrl": "",
+        "synopsis": "Touha recebe a lendária armadura ninja de seu mestre Tetsuzan Yamaji."
       },
       {
         "title": "Episódio 2: A Invasão dos Ninjas do Vento",
-        "number": 2,
-        "id": "ep-2",
         "duration": "22:50",
+        "id": "ep-2",
+        "synopsis": "O clã Dokusai envia seus guerreiros mais velozes para roubar a espada.",
         "videoUrl": "",
-        "synopsis": "O clã Dokusai envia seus guerreiros mais velozes para roubar a espada."
+        "number": 2
       },
       {
+        "duration": "23:00",
+        "id": "ep-3",
         "number": 3,
         "title": "Episódio 3: O Confronto na Floresta Sagrada",
-        "id": "ep-3",
-        "synopsis": "Jiraiya utiliza a técnica da Espada Olímpica em combate fulminante.",
-        "duration": "23:00",
-        "videoUrl": ""
+        "videoUrl": "",
+        "synopsis": "Jiraiya utiliza a técnica da Espada Olímpica em combate fulminante."
       },
       {
-        "number": 4,
+        "synopsis": "Revelações ancestrais sobre o tesouro espacial cobiçado por todos os ninjas do mundo.",
         "videoUrl": "",
         "duration": "22:45",
-        "synopsis": "Revelações ancestrais sobre o tesouro espacial cobiçado por todos os ninjas do mundo.",
+        "number": 4,
         "title": "Episódio 4: O Segredo de Pako",
         "id": "ep-4"
       },
       {
-        "videoUrl": "",
-        "duration": "23:15",
-        "synopsis": "Um poderoso rival do vento desafia Touha em um duelo de honra.",
         "number": 5,
-        "id": "ep-5",
-        "title": "Episódio 5: A Chegada de Kazenin"
+        "title": "Episódio 5: A Chegada de Kazenin",
+        "duration": "23:15",
+        "videoUrl": "",
+        "synopsis": "Um poderoso rival do vento desafia Touha em um duelo de honra.",
+        "id": "ep-5"
       },
       {
-        "synopsis": "Dokusai invoca criaturas demoníacas para sitiar o dojo dos Yamaji.",
         "id": "ep-6",
+        "number": 6,
         "duration": "22:55",
         "videoUrl": "",
-        "title": "Episódio 6: A Fúria do Império dos Monstros",
-        "number": 6
+        "synopsis": "Dokusai invoca criaturas demoníacas para sitiar o dojo dos Yamaji.",
+        "title": "Episódio 6: A Fúria do Império dos Monstros"
       },
       {
+        "title": "Episódio 7: A Espada Olímpica Reluzente",
+        "id": "ep-7",
         "number": 7,
         "videoUrl": "",
-        "duration": "23:20",
         "synopsis": "O golpe derradeiro que quebra as trevas dos ninjas malignos.",
-        "title": "Episódio 7: A Espada Olímpica Reluzente",
-        "id": "ep-7"
+        "duration": "23:20"
       },
       {
-        "number": 8,
         "id": "ep-8",
         "title": "Episódio 8: A Batalha Final pelo Destino",
-        "synopsis": "O confronto épico decisivo no cume da montanha sagrada.",
         "duration": "23:40",
+        "number": 8,
+        "synopsis": "O confronto épico decisivo no cume da montanha sagrada.",
         "videoUrl": ""
       }
     ]
@@ -941,68 +941,68 @@
     "archiveId": "jaspion-completo-dublado",
     "episodes": [
       {
+        "duration": "23:30",
+        "id": "ep-1",
         "synopsis": "Jaspion recebe a profecia galáctica e viaja pelo universo em sua nave Daileon.",
         "videoUrl": "",
-        "duration": "23:30",
         "number": 1,
-        "id": "ep-1",
         "title": "Episódio 1: O Planeta de Edin"
       },
       {
         "videoUrl": "",
-        "duration": "23:15",
         "synopsis": "Satan Goss enfurece as criaturas gigantes na Terra e o Daileon é convocado.",
-        "number": 2,
+        "duration": "23:15",
+        "id": "ep-2",
         "title": "Episódio 2: O Despertar dos Monstros",
-        "id": "ep-2"
+        "number": 2
       },
       {
-        "title": "Episódio 3: O Duelo com MacGaren",
         "id": "ep-3",
-        "duration": "23:25",
+        "synopsis": "O temível filho de Satan Goss surge para desafiar a Espada Laser de Jaspion.",
         "videoUrl": "",
+        "title": "Episódio 3: O Duelo com MacGaren",
         "number": 3,
-        "synopsis": "O temível filho de Satan Goss surge para desafiar a Espada Laser de Jaspion."
+        "duration": "23:25"
       },
       {
         "number": 4,
-        "id": "ep-4",
-        "videoUrl": "",
-        "duration": "23:05",
         "title": "Episódio 4: A Fúria de Satan Goss",
-        "synopsis": "Cidades inteiras tremem quando o senhor das trevas se manifesta."
+        "id": "ep-4",
+        "duration": "23:05",
+        "synopsis": "Cidades inteiras tremem quando o senhor das trevas se manifesta.",
+        "videoUrl": ""
       },
       {
-        "number": 5,
-        "title": "Episódio 5: O Raio Cósmico de Daileon",
+        "videoUrl": "",
         "synopsis": "O gigante guerreiro Daileon usa seu golpe lendário Cosmic Laser.",
         "duration": "23:20",
-        "videoUrl": "",
+        "title": "Episódio 5: O Raio Cósmico de Daileon",
+        "number": 5,
         "id": "ep-5"
       },
       {
-        "number": 6,
         "id": "ep-6",
         "duration": "22:50",
-        "videoUrl": "",
         "synopsis": "Uma criatura pacífica é manipulada pelos vilões e Jaspion tenta salvá-la.",
-        "title": "Episódio 6: A Menina e o Monstro"
+        "videoUrl": "",
+        "title": "Episódio 6: A Menina e o Monstro",
+        "number": 6
       },
       {
-        "title": "Episódio 7: O Pássaro Dourado",
         "synopsis": "A lendária criatura mística ressurge trazendo esperança para a humanidade.",
-        "videoUrl": "",
-        "duration": "23:35",
         "number": 7,
+        "videoUrl": "",
+        "title": "Episódio 7: O Pássaro Dourado",
+        "duration": "23:35",
         "id": "ep-7"
       },
       {
-        "number": 8,
-        "id": "ep-8",
         "duration": "24:00",
+        "synopsis": "O confronto definitivo contra MacGaren e a transformação final de Satan Goss.",
         "videoUrl": "",
         "title": "Episódio 8: A Batalha Final",
-        "synopsis": "O confronto definitivo contra MacGaren e a transformação final de Satan Goss."
+        "id": "ep-8",
+        "number": 8
       }
     ]
   },
@@ -1236,68 +1236,68 @@
     "archiveId": "ducktales-os-cacadores-de-aventuras-classico-dublado-1987",
     "episodes": [
       {
-        "title": "Episódio 1: Café da Manhã Impossível",
-        "synopsis": "Uma torradeira teimosa e abelhas contra o pato mais estressado.",
         "id": "ep-1",
+        "synopsis": "Uma torradeira teimosa e abelhas contra o pato mais estressado.",
         "videoUrl": "",
         "duration": "07:10",
+        "title": "Episódio 1: Café da Manhã Impossível",
         "number": 1
       },
       {
         "number": 2,
-        "videoUrl": "",
-        "duration": "06:55",
+        "title": "Episódio 2: Sobrinhos em Ação",
         "synopsis": "Huguinho, Zezinho e Luisinho aprontam pegadinhas no quintal.",
+        "videoUrl": "",
         "id": "ep-2",
-        "title": "Episódio 2: Sobrinhos em Ação"
+        "duration": "06:55"
       },
       {
-        "number": 3,
         "title": "Episódio 3: O Piquenique Selvagem",
-        "duration": "07:05",
+        "id": "ep-3",
         "videoUrl": "",
         "synopsis": "Formigas organizadas em marcha roubam a cesta inteira.",
-        "id": "ep-3"
+        "number": 3,
+        "duration": "07:05"
       },
       {
-        "title": "Episódio 4: Donald no Farol da Ilha",
-        "duration": "06:45",
-        "videoUrl": "",
         "number": 4,
+        "synopsis": "Tentando manter a luz acesa durante uma tempestade e uma gaivota teimosa.",
+        "videoUrl": "",
+        "duration": "06:45",
         "id": "ep-4",
-        "synopsis": "Tentando manter a luz acesa durante uma tempestade e uma gaivota teimosa."
+        "title": "Episódio 4: Donald no Farol da Ilha"
       },
       {
-        "id": "ep-5",
-        "number": 5,
-        "duration": "07:20",
         "videoUrl": "",
         "synopsis": "Uma guerra contra esquilos traquinas que roubam suas nozes.",
-        "title": "Episódio 5: O Jardineiro Revoltado"
+        "number": 5,
+        "title": "Episódio 5: O Jardineiro Revoltado",
+        "duration": "07:20",
+        "id": "ep-5"
       },
       {
-        "synopsis": "Uma invenção automática que explode em milho por todo o bairro.",
-        "title": "Episódio 6: Donald e a Máquina de Pipoca",
-        "duration": "06:35",
-        "videoUrl": "",
+        "number": 6,
         "id": "ep-6",
-        "number": 6
+        "synopsis": "Uma invenção automática que explode em milho por todo o bairro.",
+        "videoUrl": "",
+        "title": "Episódio 6: Donald e a Máquina de Pipoca",
+        "duration": "06:35"
       },
       {
-        "videoUrl": "",
         "duration": "07:15",
         "number": 7,
-        "title": "Episódio 7: Dia de Acampamento",
+        "videoUrl": "",
         "synopsis": "Montar uma barraca de camping nunca foi tão difícil e hilário.",
-        "id": "ep-7"
+        "id": "ep-7",
+        "title": "Episódio 7: Dia de Acampamento"
       },
       {
         "id": "ep-8",
         "number": 8,
         "synopsis": "As engrenagens de um relógio de pêndulo desafiam a paciência do pato.",
-        "duration": "06:50",
+        "videoUrl": "",
         "title": "Episódio 8: Donald e o Relógio Antigo",
-        "videoUrl": ""
+        "duration": "06:50"
       }
     ]
   },
@@ -1331,100 +1331,100 @@
     "archiveId": "pica-pau-e-seus-amigos-vol-1",
     "episodes": [
       {
-        "videoUrl": "",
         "title": "Episódio 1: A Serralheria Maluca",
-        "duration": "07:15",
+        "videoUrl": "",
         "synopsis": "Pica-Pau decide consertar o telhado do vizinho — do jeito mais barulhento possível.",
         "number": 1,
+        "duration": "07:15",
         "id": "ep-1"
       },
       {
-        "title": "Episódio 2: O Barbeiro de Sevilha",
         "number": 2,
-        "videoUrl": "",
+        "title": "Episódio 2: O Barbeiro de Sevilha",
         "duration": "06:50",
         "synopsis": "O pássaro travesso assume a barbearia da cidade ao som de ópera clássica.",
+        "videoUrl": "",
         "id": "ep-2"
       },
       {
         "title": "Episódio 3: Pica-Pau Come Fora",
-        "videoUrl": "",
+        "id": "ep-3",
         "duration": "07:05",
         "number": 3,
         "synopsis": "Em busca de um banquete gratuito, o Pica-Pau transforma o restaurante em um caos.",
-        "id": "ep-3"
+        "videoUrl": ""
       },
       {
+        "duration": "06:40",
         "id": "ep-4",
-        "number": 4,
-        "title": "Episódio 4: O Biruta",
-        "synopsis": "Um clássico onde o Pica-Pau apronta todas ao tentar renovar sua carteira de motorista.",
         "videoUrl": "",
-        "duration": "06:40"
+        "synopsis": "Um clássico onde o Pica-Pau apronta todas ao tentar renovar sua carteira de motorista.",
+        "title": "Episódio 4: O Biruta",
+        "number": 4
       },
       {
         "duration": "07:20",
-        "videoUrl": "",
         "title": "Episódio 5: Quem Cozinha Quem?",
+        "videoUrl": "",
         "synopsis": "Durante o inverno rigoroso, o Pica-Pau e o lobo disputam a despensa.",
         "number": 5,
         "id": "ep-5"
       },
       {
         "number": 6,
-        "id": "ep-6",
-        "videoUrl": "",
-        "duration": "06:55",
         "title": "Episódio 6: Campeão de Golfe",
-        "synopsis": "Uma partida de golfe cheia de trapaças e bolas explosivas."
+        "synopsis": "Uma partida de golfe cheia de trapaças e bolas explosivas.",
+        "videoUrl": "",
+        "id": "ep-6",
+        "duration": "06:55"
       },
       {
         "number": 7,
-        "duration": "07:10",
-        "videoUrl": "",
-        "synopsis": "Uma pescaria aparentemente tranquila vira uma avalanche de trapalhadas.",
+        "id": "ep-7",
         "title": "Episódio 7: Férias na Montanha",
-        "id": "ep-7"
-      },
-      {
-        "title": "Episódio 8: Noite no Museu Antigo",
-        "duration": "07:30",
-        "videoUrl": "",
-        "synopsis": "Estátuas, múmias e um pássaro curioso demais explorando as galerias.",
-        "number": 8,
-        "id": "ep-8"
-      },
-      {
-        "videoUrl": "",
-        "duration": "06:45",
-        "id": "ep-9",
-        "title": "Episódio 9: O Vale dos Monstros",
-        "synopsis": "Pica-Pau encontra um cientista excêntrico e suas invenções malucas.",
-        "number": 9
-      },
-      {
-        "title": "Episódio 10: O Pica-Pau Espião",
-        "id": "ep-10",
-        "synopsis": "Missões secretas, disfarces hilários e o temível Zeca Urubu.",
-        "number": 10,
-        "duration": "07:12",
+        "duration": "07:10",
+        "synopsis": "Uma pescaria aparentemente tranquila vira uma avalanche de trapalhadas.",
         "videoUrl": ""
       },
       {
-        "title": "Episódio 11: Concerto na Floresta",
-        "number": 11,
-        "duration": "07:00",
-        "videoUrl": "",
-        "synopsis": "Uma apresentação sinfônica onde cada nota vira uma piada visual.",
-        "id": "ep-11"
+        "id": "ep-8",
+        "duration": "07:30",
+        "title": "Episódio 8: Noite no Museu Antigo",
+        "number": 8,
+        "synopsis": "Estátuas, múmias e um pássaro curioso demais explorando as galerias.",
+        "videoUrl": ""
       },
       {
-        "number": 12,
+        "title": "Episódio 9: O Vale dos Monstros",
+        "number": 9,
+        "duration": "06:45",
+        "id": "ep-9",
+        "synopsis": "Pica-Pau encontra um cientista excêntrico e suas invenções malucas.",
+        "videoUrl": ""
+      },
+      {
+        "title": "Episódio 10: O Pica-Pau Espião",
+        "duration": "07:12",
+        "number": 10,
         "videoUrl": "",
-        "duration": "07:25",
-        "synopsis": "Pica-Pau invade os bastidores de um estúdio de cinema de Hollywood.",
+        "synopsis": "Missões secretas, disfarces hilários e o temível Zeca Urubu.",
+        "id": "ep-10"
+      },
+      {
+        "number": 11,
+        "duration": "07:00",
+        "title": "Episódio 11: Concerto na Floresta",
+        "id": "ep-11",
+        "videoUrl": "",
+        "synopsis": "Uma apresentação sinfônica onde cada nota vira uma piada visual."
+      },
+      {
+        "id": "ep-12",
+        "number": 12,
         "title": "Episódio 12: Roubando a Cena",
-        "id": "ep-12"
+        "synopsis": "Pica-Pau invade os bastidores de um estúdio de cinema de Hollywood.",
+        "videoUrl": "",
+        "duration": "07:25"
       }
     ]
   },
@@ -1478,68 +1478,68 @@
     "archiveId": "O-Novo-Show-do-Popeye-HB",
     "episodes": [
       {
+        "id": "ep-1",
+        "videoUrl": "",
         "synopsis": "Brutus trama uma emboscada na praia e Popeye precisa do seu espinafre mágico.",
         "duration": "06:15",
-        "videoUrl": "",
-        "number": 1,
-        "id": "ep-1",
-        "title": "Episódio 1: O Resgate no Farol"
+        "title": "Episódio 1: O Resgate no Farol",
+        "number": 1
       },
       {
-        "title": "Episódio 2: O Torneio de Boxe",
-        "number": 2,
+        "synopsis": "Uma luta emocionante nos ringues pelos aplausos de Olívia Palito.",
         "videoUrl": "",
         "duration": "06:30",
-        "id": "ep-2",
-        "synopsis": "Uma luta emocionante nos ringues pelos aplausos de Olívia Palito."
+        "title": "Episódio 2: O Torneio de Boxe",
+        "number": 2,
+        "id": "ep-2"
       },
       {
         "title": "Episódio 3: Aventura em Alto-Mar",
-        "number": 3,
-        "videoUrl": "",
         "duration": "06:45",
         "id": "ep-3",
+        "number": 3,
+        "videoUrl": "",
         "synopsis": "Monstros marinhos e ondas gigantes não assustam o velho marinheiro."
       },
       {
-        "title": "Episódio 4: O Mistério da Ilha Perdida",
-        "id": "ep-4",
-        "synopsis": "Em busca de um tesouro pirata, Popeye e Dudu encontram perigos exóticos.",
         "number": 4,
-        "duration": "07:00",
-        "videoUrl": ""
+        "title": "Episódio 4: O Mistério da Ilha Perdida",
+        "videoUrl": "",
+        "synopsis": "Em busca de um tesouro pirata, Popeye e Dudu encontram perigos exóticos.",
+        "id": "ep-4",
+        "duration": "07:00"
       },
       {
-        "duration": "06:20",
+        "id": "ep-5",
         "videoUrl": "",
         "synopsis": "Brutus tenta sabotar o suprimento de vegetais do herói dos mares.",
+        "duration": "06:20",
         "title": "Episódio 5: Espinafre em Lata Especial",
-        "number": 5,
-        "id": "ep-5"
+        "number": 5
       },
       {
-        "title": "Episódio 6: O Parque de Diversões",
-        "id": "ep-6",
+        "number": 6,
+        "videoUrl": "",
         "synopsis": "Uma disputa nas montanhas-russas para impressionar Olívia.",
-        "videoUrl": "",
+        "title": "Episódio 6: O Parque de Diversões",
         "duration": "06:40",
-        "number": 6
+        "id": "ep-6"
       },
       {
+        "number": 7,
         "id": "ep-7",
-        "synopsis": "Gugu apronta travessuras no canteiro de obras e Popeye corre para salvar o dia.",
-        "duration": "06:50",
-        "videoUrl": "",
         "title": "Episódio 7: Popeye e o Bebê Gênio",
-        "number": 7
+        "synopsis": "Gugu apronta travessuras no canteiro de obras e Popeye corre para salvar o dia.",
+        "videoUrl": "",
+        "duration": "06:50"
       },
       {
-        "id": "ep-8",
         "title": "Episódio 8: O Grande Navio a Vapor",
+        "id": "ep-8",
         "number": 8,
-        "duration": "07:10",
+        "synopsis": "Uma corrida pelos rios do sul com muita pirotecnia náutica.",
         "videoUrl": "",
-        "synopsis": "Uma corrida pelos rios do sul com muita pirotecnia náutica."
+        "duration": "07:10"
       }
     ]
   },
@@ -1573,68 +1573,68 @@
     "archiveId": "o-que-ha-de-novo-scooby-doo-1-temp",
     "episodes": [
       {
-        "number": 1,
-        "synopsis": "Uma armadura medieval ganha vida e assombra as noites do museu arqueológico.",
         "title": "Episódio 1: A Noite do Cavaleiro Negro",
-        "id": "ep-1",
+        "number": 1,
+        "duration": "21:30",
+        "synopsis": "Uma armadura medieval ganha vida e assombra as noites do museu arqueológico.",
         "videoUrl": "",
-        "duration": "21:30"
+        "id": "ep-1"
       },
       {
-        "title": "Episódio 2: O Fantasma do Parque",
         "id": "ep-2",
+        "title": "Episódio 2: O Fantasma do Parque",
+        "videoUrl": "",
         "synopsis": "Um parque de diversões abandonado esconde um mistério arrepiante.",
-        "number": 2,
-        "videoUrl": "",
-        "duration": "21:45"
+        "duration": "21:45",
+        "number": 2
       },
       {
-        "number": 3,
-        "videoUrl": "",
-        "duration": "22:00",
-        "id": "ep-3",
         "synopsis": "Salsicha e Scooby tentam fugir de uma criatura que surge das águas pantanosas.",
-        "title": "Episódio 3: O Monstro do Lago"
+        "videoUrl": "",
+        "id": "ep-3",
+        "title": "Episódio 3: O Monstro do Lago",
+        "duration": "22:00",
+        "number": 3
       },
       {
-        "title": "Episódio 4: O Fantasma de Ouro",
+        "id": "ep-4",
         "number": 4,
+        "title": "Episódio 4: O Fantasma de Ouro",
+        "videoUrl": "",
         "synopsis": "Uma mina abandonada no velho oeste guarda um fantasma e muitos Biscoitos Scooby.",
-        "videoUrl": "",
-        "duration": "21:50",
-        "id": "ep-4"
+        "duration": "21:50"
       },
       {
-        "duration": "22:15",
-        "videoUrl": "",
-        "synopsis": "A Máquina do Mistério quebra perto de uma mansão gótica na Transilvânia.",
+        "number": 5,
         "title": "Episódio 5: O Castelo do Doutor Frankenstein",
+        "synopsis": "A Máquina do Mistério quebra perto de uma mansão gótica na Transilvânia.",
+        "videoUrl": "",
         "id": "ep-5",
-        "number": 5
+        "duration": "22:15"
       },
       {
-        "id": "ep-6",
-        "number": 6,
-        "duration": "21:40",
         "videoUrl": "",
         "synopsis": "Zumbis e feitiçaria testam a coragem da turma em Nova Orleans.",
-        "title": "Episódio 6: A Bruxa do Pântano"
+        "title": "Episódio 6: A Bruxa do Pântano",
+        "duration": "21:40",
+        "id": "ep-6",
+        "number": 6
       },
       {
-        "number": 7,
-        "id": "ep-7",
         "title": "Episódio 7: O Fantasma do Teatro",
+        "number": 7,
+        "synopsis": "Luzes piscando e passos misteriosos assombram uma peça de teatro clássica.",
         "videoUrl": "",
         "duration": "22:05",
-        "synopsis": "Luzes piscando e passos misteriosos assombram uma peça de teatro clássica."
+        "id": "ep-7"
       },
       {
         "number": 8,
         "id": "ep-8",
         "videoUrl": "",
-        "duration": "22:25",
         "synopsis": "A famosa armadilha de Fred finalmente captura o culpado.",
-        "title": "Episódio 8: Desmascarando o Vilão"
+        "title": "Episódio 8: Desmascarando o Vilão",
+        "duration": "22:25"
       }
     ]
   },
@@ -1698,68 +1698,68 @@
     "archiveId": "os-super-globetrotters-1979",
     "episodes": [
       {
-        "title": "Episódio 1: O Ataque do Museu de Cera",
-        "synopsis": "Os Globetrotters descobrem figuras de cera ganhando vida à noite no museu.",
-        "id": "ep-1",
-        "videoUrl": "",
         "duration": "21:40",
-        "number": 1
+        "number": 1,
+        "videoUrl": "",
+        "synopsis": "Os Globetrotters descobrem figuras de cera ganhando vida à noite no museu.",
+        "title": "Episódio 1: O Ataque do Museu de Cera",
+        "id": "ep-1"
       },
       {
+        "title": "Episódio 2: A Partida Intergaláctica",
         "number": 2,
-        "id": "ep-2",
         "videoUrl": "",
-        "duration": "22:00",
         "synopsis": "Vilões do espaço desafiam o time para um jogo que vale o destino da Terra.",
-        "title": "Episódio 2: A Partida Intergaláctica"
+        "id": "ep-2",
+        "duration": "22:00"
       },
       {
-        "duration": "21:50",
-        "videoUrl": "",
         "number": 3,
-        "synopsis": "Uma relíquia ancestral de basquete com poderes mágicos desaparece do ginásio.",
         "id": "ep-3",
-        "title": "Episódio 3: O Segredo da Bola de Ouro"
+        "title": "Episódio 3: O Segredo da Bola de Ouro",
+        "synopsis": "Uma relíquia ancestral de basquete com poderes mágicos desaparece do ginásio.",
+        "videoUrl": "",
+        "duration": "21:50"
       },
       {
+        "number": 4,
+        "synopsis": "Criaturas gigantes invadem o estádio durante a final do campeonato.",
+        "videoUrl": "",
         "title": "Episódio 4: O Monstro do Gramado",
         "id": "ep-4",
-        "synopsis": "Criaturas gigantes invadem o estádio durante a final do campeonato.",
-        "duration": "21:35",
-        "videoUrl": "",
-        "number": 4
+        "duration": "21:35"
       },
       {
-        "title": "Episódio 5: O Homem-Mola ao Resgate",
         "number": 5,
+        "title": "Episódio 5: O Homem-Mola ao Resgate",
+        "id": "ep-5",
         "videoUrl": "",
-        "duration": "21:55",
         "synopsis": "Acrobacias elásticas salvam a cidade de uma represa em colapso.",
-        "id": "ep-5"
+        "duration": "21:55"
       },
       {
         "number": 6,
-        "id": "ep-6",
-        "duration": "22:10",
-        "videoUrl": "",
         "title": "Episódio 6: O Enigma do Doutor Crime",
-        "synopsis": "Um cientista louco congela os árbitros e tenta roubar os troféus."
+        "duration": "22:10",
+        "synopsis": "Um cientista louco congela os árbitros e tenta roubar os troféus.",
+        "videoUrl": "",
+        "id": "ep-6"
       },
       {
-        "title": "Episódio 7: Basquete nas Nuvens",
-        "number": 7,
         "id": "ep-7",
         "duration": "21:45",
-        "videoUrl": "",
-        "synopsis": "Uma quadra voadora testará a gravidade e o humor dos heróis das quadras."
+        "title": "Episódio 7: Basquete nas Nuvens",
+        "number": 7,
+        "synopsis": "Uma quadra voadora testará a gravidade e o humor dos heróis das quadras.",
+        "videoUrl": ""
       },
       {
-        "synopsis": "O drible definitivo que salva a cidade em um festival comemorativo.",
-        "videoUrl": "",
-        "id": "ep-8",
         "duration": "22:20",
-        "number": 8,
-        "title": "Episódio 8: A Grande Vitória"
+        "title": "Episódio 8: A Grande Vitória",
+        "id": "ep-8",
+        "videoUrl": "",
+        "synopsis": "O drible definitivo que salva a cidade em um festival comemorativo.",
+        "number": 8
       }
     ]
   },
@@ -1813,68 +1813,68 @@
     "archiveId": "thundarr-o-barbaro-1980",
     "episodes": [
       {
-        "title": "Episódio 1: O Segredo do Vale Proibido",
         "number": 1,
-        "id": "ep-1",
-        "synopsis": "Thundarr descobre uma fortaleza antiga protegida por feitiçaria sombria.",
+        "title": "Episódio 1: O Segredo do Vale Proibido",
         "videoUrl": "",
+        "synopsis": "Thundarr descobre uma fortaleza antiga protegida por feitiçaria sombria.",
+        "id": "ep-1",
         "duration": "21:30"
       },
       {
         "id": "ep-2",
         "title": "Episódio 2: A Espada Solar em Chamas",
+        "videoUrl": "",
         "synopsis": "Uma batalha contra magos mutantes nos restos de uma metrópole submersa.",
-        "videoUrl": "",
-        "duration": "21:45",
-        "number": 2
+        "number": 2,
+        "duration": "21:45"
       },
       {
-        "number": 3,
-        "videoUrl": "",
-        "duration": "22:00",
         "synopsis": "Ariel e Ookla resgatam prisioneiros de guerreiros voadores no deserto.",
-        "title": "Episódio 3: Os Salteadores do Vento",
-        "id": "ep-3"
-      },
-      {
-        "number": 4,
         "videoUrl": "",
-        "duration": "21:50",
-        "synopsis": "O trio enfrenta um feiticeiro cibernético que controla autômatos antigos.",
-        "id": "ep-4",
-        "title": "Episódio 4: A Cidade dos Magos Negros"
+        "id": "ep-3",
+        "title": "Episódio 3: Os Salteadores do Vento",
+        "duration": "22:00",
+        "number": 3
       },
       {
+        "duration": "21:50",
+        "number": 4,
+        "synopsis": "O trio enfrenta um feiticeiro cibernético que controla autômatos antigos.",
+        "videoUrl": "",
+        "title": "Episódio 4: A Cidade dos Magos Negros",
+        "id": "ep-4"
+      },
+      {
+        "number": 5,
+        "title": "Episódio 5: O Despertar do Vulcão",
+        "videoUrl": "",
         "synopsis": "Uma corrida contra o tempo para salvar uma vila pacífica antes da erupção mágica.",
         "id": "ep-5",
-        "duration": "22:10",
-        "videoUrl": "",
-        "number": 5,
-        "title": "Episódio 5: O Despertar do Vulcão"
+        "duration": "22:10"
       },
       {
+        "videoUrl": "",
         "synopsis": "Thundarr é capturado e forçado a lutar como gladiador em uma arena futurista.",
-        "title": "Episódio 6: O Coliseu do Terror",
         "duration": "21:40",
-        "videoUrl": "",
+        "number": 6,
         "id": "ep-6",
-        "number": 6
+        "title": "Episódio 6: O Coliseu do Terror"
       },
       {
-        "id": "ep-7",
-        "number": 7,
-        "title": "Episódio 7: O Segredo da Rainha do Gelo",
-        "videoUrl": "",
         "duration": "22:05",
-        "synopsis": "Uma feiticeira congelante ameaça mergulhar os vales em um inverno eterno."
+        "synopsis": "Uma feiticeira congelante ameaça mergulhar os vales em um inverno eterno.",
+        "videoUrl": "",
+        "title": "Episódio 7: O Segredo da Rainha do Gelo",
+        "id": "ep-7",
+        "number": 7
       },
       {
         "title": "Episódio 8: A Batalha pela Terra",
-        "synopsis": "Thundarr lidera uma coalizão de guerreiros contra o maior tirano do continente.",
-        "videoUrl": "",
-        "duration": "22:30",
+        "id": "ep-8",
         "number": 8,
-        "id": "ep-8"
+        "videoUrl": "",
+        "synopsis": "Thundarr lidera uma coalizão de guerreiros contra o maior tirano do continente.",
+        "duration": "22:30"
       }
     ]
   },
@@ -1888,68 +1888,68 @@
     "archiveId": "1985-thundercats-s-02-2",
     "episodes": [
       {
-        "title": "Episódio 1: Êxodo para o Terceiro Mundo",
         "number": 1,
-        "videoUrl": "",
         "duration": "22:20",
+        "title": "Episódio 1: Êxodo para o Terceiro Mundo",
         "synopsis": "Após a destruição de Thundera, os ThunderCats encontram seu novo refúgio no Terceiro Mundo.",
+        "videoUrl": "",
         "id": "ep-1"
       },
       {
-        "number": 2,
+        "title": "Episódio 2: A Aliança dos Mutantes",
         "id": "ep-2",
-        "duration": "22:15",
-        "videoUrl": "",
         "synopsis": "Os mutantes de Plun-Darr se unem à múmia imortal Mumm-Ra na Pirâmide Negra.",
-        "title": "Episódio 2: A Aliança dos Mutantes"
+        "videoUrl": "",
+        "duration": "22:15",
+        "number": 2
       },
       {
         "synopsis": "Panthro e Cheetara testam suas habilidades para resgatar os companheiros.",
-        "duration": "21:50",
         "videoUrl": "",
-        "id": "ep-3",
         "number": 3,
+        "duration": "21:50",
+        "id": "ep-3",
         "title": "Episódio 3: A Torre das Armadilhas"
       },
       {
-        "id": "ep-4",
-        "title": "Episódio 4: A Espada Justiceira em Perigo",
-        "number": 4,
-        "videoUrl": "",
         "duration": "22:05",
-        "synopsis": "Mumm-Ra usa feitiçaria antiga para tentar ofuscar a visão além do alcance do Olho de Thundera."
+        "id": "ep-4",
+        "synopsis": "Mumm-Ra usa feitiçaria antiga para tentar ofuscar a visão além do alcance do Olho de Thundera.",
+        "videoUrl": "",
+        "title": "Episódio 4: A Espada Justiceira em Perigo",
+        "number": 4
       },
       {
         "id": "ep-5",
-        "number": 5,
         "title": "Episódio 5: O Retorno de Grune, o Destruidor",
         "videoUrl": "",
+        "synopsis": "O espírito do lendário guerreiro rebelde retorna em busca de vingança.",
         "duration": "22:30",
-        "synopsis": "O espírito do lendário guerreiro rebelde retorna em busca de vingança."
+        "number": 5
       },
       {
+        "duration": "21:40",
+        "id": "ep-6",
         "videoUrl": "",
         "title": "Episódio 6: A Sabedoria de Jaga",
-        "duration": "21:40",
         "synopsis": "Lion-O recebe a aparição espectral de Jaga com ensinamentos essenciais de liderança.",
-        "number": 6,
-        "id": "ep-6"
+        "number": 6
       },
       {
-        "id": "ep-7",
-        "title": "Episódio 7: O Desafio dos Berbils",
-        "number": 7,
         "duration": "22:00",
+        "title": "Episódio 7: O Desafio dos Berbils",
+        "id": "ep-7",
         "videoUrl": "",
-        "synopsis": "Criaturas pacíficas constroem a lendária Toca dos Gatos para os heróis."
+        "synopsis": "Criaturas pacíficas constroem a lendária Toca dos Gatos para os heróis.",
+        "number": 7
       },
       {
-        "number": 8,
         "id": "ep-8",
+        "number": 8,
         "synopsis": "Lion-O e os ThunderCats invadem a fortaleza do mal em um confronto fulminante.",
         "videoUrl": "",
-        "duration": "22:45",
-        "title": "Episódio 8: A Batalha da Pirâmide Negra"
+        "title": "Episódio 8: A Batalha da Pirâmide Negra",
+        "duration": "22:45"
       }
     ]
   },
@@ -1964,67 +1964,67 @@
     "episodes": [
       {
         "number": 1,
-        "videoUrl": "",
+        "id": "ep-1",
         "duration": "06:40",
         "synopsis": "Tom prepara armadilhas engenhosas, mas Jerry vira o jogo com um pedaço de queijo.",
-        "title": "Episódio 1: O Duelo no Quintal",
-        "id": "ep-1"
+        "videoUrl": "",
+        "title": "Episódio 1: O Duelo no Quintal"
       },
       {
-        "synopsis": "Um concerto clássico vira um campo de batalha musical incontrolável.",
-        "videoUrl": "",
         "duration": "07:35",
-        "number": 2,
         "id": "ep-2",
-        "title": "Episódio 2: Concerto de Piano"
+        "videoUrl": "",
+        "synopsis": "Um concerto clássico vira um campo de batalha musical incontrolável.",
+        "title": "Episódio 2: Concerto de Piano",
+        "number": 2
       },
       {
-        "title": "Episódio 3: O Piquenique do Spike",
-        "synopsis": "O buldogue Spike só queria uma tarde tranquila de descanso no gramado.",
-        "id": "ep-3",
         "duration": "06:55",
+        "number": 3,
+        "id": "ep-3",
+        "synopsis": "O buldogue Spike só queria uma tarde tranquila de descanso no gramado.",
         "videoUrl": "",
-        "number": 3
+        "title": "Episódio 3: O Piquenique do Spike"
       },
       {
-        "title": "Episódio 4: Jerry e o Patinho",
-        "id": "ep-4",
+        "number": 4,
         "videoUrl": "",
-        "duration": "07:10",
         "synopsis": "Jerry tenta proteger um patinho recém-nascido das garras de Tom.",
-        "number": 4
+        "duration": "07:10",
+        "id": "ep-4",
+        "title": "Episódio 4: Jerry e o Patinho"
       },
       {
-        "title": "Episódio 5: Noite de Natal",
-        "number": 5,
-        "synopsis": "A trégua de fim de ano é testada pelos presentes e pela lareira acesa.",
-        "id": "ep-5",
         "duration": "07:20",
-        "videoUrl": ""
+        "synopsis": "A trégua de fim de ano é testada pelos presentes e pela lareira acesa.",
+        "videoUrl": "",
+        "number": 5,
+        "id": "ep-5",
+        "title": "Episódio 5: Noite de Natal"
       },
       {
-        "number": 6,
         "videoUrl": "",
-        "duration": "06:45",
         "synopsis": "Jerry descobre uma tinta invisível e apronta todas com o felino desavisado.",
         "id": "ep-6",
+        "number": 6,
+        "duration": "06:45",
         "title": "Episódio 6: O Rato Invisível"
       },
       {
-        "title": "Episódio 7: Trabalho de Alta Classe",
-        "number": 7,
-        "duration": "07:00",
+        "synopsis": "Tom tenta conquistar uma gatinha elegante mas Jerry rouba a cena.",
         "videoUrl": "",
         "id": "ep-7",
-        "synopsis": "Tom tenta conquistar uma gatinha elegante mas Jerry rouba a cena."
+        "number": 7,
+        "duration": "07:00",
+        "title": "Episódio 7: Trabalho de Alta Classe"
       },
       {
         "title": "Episódio 8: Gato e Rato no Espaço",
-        "id": "ep-8",
-        "duration": "07:15",
-        "videoUrl": "",
         "number": 8,
-        "synopsis": "A perseguição cósmica em gravidade zero cheia de explosões."
+        "duration": "07:15",
+        "id": "ep-8",
+        "synopsis": "A perseguição cósmica em gravidade zero cheia de explosões.",
+        "videoUrl": ""
       }
     ]
   },
@@ -2099,67 +2099,67 @@
     "episodes": [
       {
         "number": 1,
-        "duration": "06:30",
         "videoUrl": "",
-        "id": "ep-1",
         "synopsis": "Zé Buscapé tenta escapar das tarefas domésticas para tocar seu banjo na varanda.",
-        "title": "Episódio 1: A Festa da Colina"
+        "title": "Episódio 1: A Festa da Colina",
+        "id": "ep-1",
+        "duration": "06:30"
       },
       {
-        "number": 2,
-        "id": "ep-2",
-        "videoUrl": "",
         "duration": "06:45",
+        "title": "Episódio 2: O Vizinho Barulhento",
         "synopsis": "Uma disputa hilária pela melhor cerca de madeira da fazenda.",
-        "title": "Episódio 2: O Vizinho Barulhento"
+        "videoUrl": "",
+        "number": 2,
+        "id": "ep-2"
       },
       {
         "number": 3,
+        "synopsis": "O urso mais sonolento da animação vai pescar e arruma muita confusão.",
+        "videoUrl": "",
         "title": "Episódio 3: Dia de Pesca na Represa",
         "id": "ep-3",
-        "videoUrl": "",
-        "duration": "06:20",
-        "synopsis": "O urso mais sonolento da animação vai pescar e arruma muita confusão."
+        "duration": "06:20"
       },
       {
-        "id": "ep-4",
-        "number": 4,
         "videoUrl": "",
-        "duration": "06:50",
         "synopsis": "Bié bota todo mundo para correr quando a comida da horta desaparece.",
-        "title": "Episódio 4: A Espingarda de Sal"
+        "duration": "06:50",
+        "id": "ep-4",
+        "title": "Episódio 4: A Espingarda de Sal",
+        "number": 4
       },
       {
+        "number": 5,
         "title": "Episódio 5: O Carro Troglodita do Zé",
         "duration": "06:15",
         "videoUrl": "",
         "synopsis": "Construir um automóvel caseiro nunca gerou tantas explosões de fumaça.",
-        "id": "ep-5",
-        "number": 5
+        "id": "ep-5"
       },
       {
-        "id": "ep-6",
-        "title": "Episódio 6: O Duelo de Banjos",
+        "number": 6,
         "duration": "06:40",
+        "title": "Episódio 6: O Duelo de Banjos",
         "videoUrl": "",
         "synopsis": "Um festival de música caipira onde Zé disputa o prêmio com o xerife.",
-        "number": 6
+        "id": "ep-6"
       },
       {
-        "videoUrl": "",
-        "duration": "06:25",
-        "title": "Episódio 7: A Sesta Interrompida",
-        "synopsis": "Todas as tentativas de tirar uma soneca tranquila dão errado.",
         "number": 7,
-        "id": "ep-7"
+        "title": "Episódio 7: A Sesta Interrompida",
+        "id": "ep-7",
+        "duration": "06:25",
+        "videoUrl": "",
+        "synopsis": "Todas as tentativas de tirar uma soneca tranquila dão errado."
       },
       {
+        "synopsis": "A família inteira tenta provar o bolo antes da hora e a confusão é geral.",
+        "videoUrl": "",
         "number": 8,
         "title": "Episódio 8: O Bolo de Maçã da Bié",
-        "id": "ep-8",
         "duration": "06:35",
-        "videoUrl": "",
-        "synopsis": "A família inteira tenta provar o bolo antes da hora e a confusão é geral."
+        "id": "ep-8"
       }
     ]
   },
