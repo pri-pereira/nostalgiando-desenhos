@@ -672,7 +672,7 @@ function Watch() {
             <ChevronLeft className="h-4 w-4" /> Voltar para o Início
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {savedLastIndex !== null && savedLastIndex !== current && (
               <button
                 onClick={() => setCurrent(savedLastIndex)}
@@ -683,6 +683,18 @@ function Watch() {
                 <span>Continuar do Ep. {savedLastIndex + 1}</span>
               </button>
             )}
+            <button
+              onClick={handleOpenCast}
+              className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-all cursor-pointer shadow-sm active:scale-95 ${
+                castState === "connected"
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/50"
+                  : "bg-amber-500/15 text-amber-300 border border-amber-500/40 hover:bg-amber-500/25"
+              }`}
+              title="Espelhar reprodução na sua Smart TV, Chromecast ou AirPlay"
+            >
+              <Cast className="h-3.5 w-3.5 text-amber-400" />
+              <span>{castState === "connected" ? "Transmitindo na TV" : "Espelhar na TV"}</span>
+            </button>
             <span className="rounded-full bg-secondary/80 px-3.5 py-1 text-xs font-bold text-accent border border-border/40">
               {show.title}
             </span>
@@ -753,23 +765,23 @@ function Watch() {
                     />
                   )}
 
-                  {/* Botão Flutuante de Espelhar na TV no Player */}
+                  {/* Botão Flutuante de Espelhar na TV no Player com Alto Destaque */}
                   <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
                     <button
                       onClick={handleOpenCast}
-                      className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-md transition-all cursor-pointer shadow-xl active:scale-95 ${
+                      className={`group flex items-center gap-2 px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-2xl active:scale-95 ${
                         castState === "connected"
-                          ? "bg-emerald-500/90 hover:bg-emerald-400 text-black font-bold border border-emerald-300 shadow-emerald-500/30"
-                          : "bg-black/75 hover:bg-black/95 text-amber-300 hover:text-amber-200 border border-amber-500/40 hover:border-amber-400 shadow-amber-950/40"
+                          ? "bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold border border-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.5)]"
+                          : "bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-black font-extrabold border border-amber-300 shadow-[0_0_25px_rgba(245,158,11,0.45)] hover:shadow-[0_0_35px_rgba(245,158,11,0.7)]"
                       }`}
                       title="Espelhar reprodução na sua Smart TV, Chromecast ou AirPlay"
                     >
-                      <Cast className={`h-3.5 w-3.5 ${castState === "connected" ? "animate-pulse" : "group-hover:scale-110"} transition-transform`} />
-                      <span className="text-[11px] font-bold hidden sm:inline">
-                        {castState === "connected" ? "Na TV" : "Espelhar na TV"}
+                      <Cast className={`h-4 w-4 shrink-0 ${castState === "connected" ? "animate-pulse" : "group-hover:scale-110"} transition-transform text-black`} />
+                      <span className="text-xs font-black tracking-wide">
+                        {castState === "connected" ? "Transmitindo na TV" : "Espelhar na TV"}
                       </span>
                       {castState === "connected" && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-black animate-ping" />
+                        <span className="h-2 w-2 rounded-full bg-black animate-ping" />
                       )}
                     </button>
                   </div>
@@ -898,14 +910,14 @@ function Watch() {
                     </button>
                     <button
                       onClick={handleOpenCast}
-                      className={`flex-1 sm:flex-none h-10 px-3.5 rounded-xl border text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
+                      className={`flex-1 sm:flex-none h-10 px-4 rounded-xl border text-xs font-black cursor-pointer flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md ${
                         castState === "connected"
-                          ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
-                          : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 shadow-sm"
+                          ? "border-emerald-500 bg-emerald-500/25 text-emerald-300 hover:bg-emerald-500/35"
+                          : "border-amber-400/80 bg-gradient-to-r from-amber-500/20 via-amber-400/25 to-amber-500/20 text-amber-300 hover:from-amber-500/35 hover:to-amber-500/35 shadow-[0_0_15px_rgba(245,158,11,0.25)]"
                       }`}
                       title="Espelhar reprodução na sua Smart TV, Chromecast ou AirPlay"
                     >
-                      <Cast className="h-4 w-4 shrink-0 text-amber-400" />
+                      <Cast className="h-4 w-4 shrink-0 text-amber-400 animate-pulse" />
                       <span>{castState === "connected" ? "Na TV" : "Espelhar na TV"}</span>
                     </button>
                   </div>
