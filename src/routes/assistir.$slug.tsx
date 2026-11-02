@@ -67,12 +67,48 @@ export const Route = createFileRoute("/assistir/$slug")({
       };
     }
     const { show } = loaderData;
+    const yearMatch = show.year?.match(/\b(19\d\d|20\d\d)\b/);
+    const displayYear = yearMatch ? yearMatch[1] : (show.year || "Clássico");
+    const ogTitle = `Assista ${show.title} (${displayYear}) Completo no Nostalgiando Desenhos`;
+    const ogDesc =
+      show.synopsis ||
+      "Assista episódios completos dublados e mate a saudade dos maiores clássicos da animação retrô no Nostalgiando Desenhos!";
+    const poster = show.poster || "https://nostalgiando-desenhos.vercel.app/icon-512x512.png";
+    const shareUrl = `https://nostalgiando-desenhos.vercel.app/assistir/${encodeURIComponent(show.slug)}`;
+
     return {
       meta: [
-        { title: `Assistir ${show.title} Online Dublado — Nostalgiando Desenhos` },
-        { name: "description", content: show.synopsis },
-        { property: "og:title", content: `${show.title} — Nostalgiando Desenhos` },
-        { property: "og:description", content: show.synopsis },
+        { title: `${show.title} (${displayYear}) Online Dublado — Nostalgiando Desenhos` },
+        { name: "description", content: ogDesc },
+        { property: "og:site_name", content: "Nostalgiando Desenhos" },
+        { property: "og:title", content: ogTitle },
+        { property: "og:description", content: ogDesc },
+        { property: "og:image", content: poster },
+        { property: "og:image:width", content: "600" },
+        { property: "og:image:height", content: "900" },
+        { property: "og:image:type", content: "image/jpeg" },
+        { property: "og:type", content: "video.tv_show" },
+        { property: "og:url", content: shareUrl },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: ogTitle },
+        { name: "twitter:description", content: ogDesc },
+        { name: "twitter:image", content: poster },
+      ],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "TVSeries",
+            name: show.title,
+            description: ogDesc,
+            image: poster,
+            dateCreated: displayYear,
+            inLanguage: "pt-BR",
+            numberOfEpisodes: show.episodes?.length || undefined,
+            url: shareUrl,
+          }),
+        },
       ],
     };
   },
@@ -605,6 +641,23 @@ function Watch() {
     }
   };
 
+  const handleShareWhatsApp = () => {
+    const currentUrl = typeof window !== "undefined" ? window.location.href : `https://nostalgiando-desenhos.vercel.app/assistir/${show?.slug || slug}`;
+    const shareText = `Olha que relíquia encontrei completo dublado no Nostalgiando: ${show?.title || "desenho clássico"}! Assiste aí: ${currentUrl}`;
+
+    if (navigator.share && /android|iphone|ipad|ipod/i.test(navigator.userAgent || "")) {
+      navigator.share({
+        title: show?.title || "Nostalgiando Desenhos",
+        text: shareText,
+        url: currentUrl,
+      }).catch(() => {
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`, "_blank");
+      });
+    } else {
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`, "_blank");
+    }
+  };
+
   const copyToClipboard = () => {
     if (typeof window !== "undefined") {
       if (navigator.clipboard) {
@@ -1018,6 +1071,16 @@ function Watch() {
                           <span>Compartilhar</span>
                         </>
                       )}
+                    </button>
+                    <button
+                      onClick={handleShareWhatsApp}
+                      className="flex-1 sm:flex-none h-10 px-4 rounded-xl border border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all justify-center shadow-[0_0_15px_rgba(16,185,129,0.15)] active:scale-95"
+                      title="Compartilhar no WhatsApp"
+                    >
+                      <svg className="h-4 w-4 fill-emerald-400" viewBox="0 0 24 24">
+                        <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.634.053-.943-.057-.184-.066-.395-.157-.655-.27-.978-.426-1.748-1.157-2.226-2.079-.193-.374-.326-.783-.342-1.203-.021-.527.172-.942.383-1.158.114-.117.26-.184.409-.184.073 0 .144.004.212.012.164.019.261.05.352.27.094.228.324.789.352.846.028.058.047.126.009.201-.037.075-.056.122-.112.188-.056.066-.118.147-.168.198-.057.057-.116.119-.05.233.066.113.293.484.629.783.433.386.798.505.911.562.113.056.18.047.247-.029.067-.075.289-.336.366-.452.077-.115.154-.096.257-.058.103.039.655.309.768.365.113.057.189.085.217.132.028.047.028.467-.116.872z" />
+                      </svg>
+                      <span>WhatsApp</span>
                     </button>
                     <button
                       onClick={handleOpenCast}

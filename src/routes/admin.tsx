@@ -88,6 +88,11 @@ import {
   normalizeShow,
   normalizeCatalogList,
 } from "@/lib/normalizeCatalog";
+import { isFragilePoster } from "@/lib/tmdb";
+import { TmdbSearchModal } from "@/components/admin/TmdbSearchModal";
+import { EpisodesBatchManager } from "@/components/admin/EpisodesBatchManager";
+import { TmdbBatchSyncTab } from "@/components/admin/TmdbBatchSyncTab";
+import { AdminBentoGrid } from "@/components/admin/AdminBentoGrid";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -100,10 +105,27 @@ export const Route = createFileRoute("/admin")({
 });
 
 // Tabs do painel
-type AdminTab = "dashboard" | "titulos" | "adicionar" | "categorias" | "usuarios" | "manutencao";
+type AdminTab =
+  | "dashboard"
+  | "titulos"
+  | "adicionar"
+  | "categorias"
+  | "usuarios"
+  | "manutencao"
+  | "tmdb";
 
 function AdminPage() {
-  const { isAdmin, is2FAVerified, is2FAEnabled, isLoading } = useAuth();
+  const { user, isAdmin, is2FAVerified, is2FAEnabled, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Zero Trust: se o usuário já estiver autenticado no Firebase mas NÃO for administrador,
+    // ejeta imediatamente para a página inicial sem renderizar o layout administrativo
+    if (!isLoading && user && !isAdmin) {
+      toast.error("Acesso restrito. Sua conta não possui permissões de administrador.");
+      navigate({ to: "/" });
+    }
+  }, [user, isAdmin, isLoading, navigate]);
 
   if (isLoading) {
     return (
@@ -114,8 +136,13 @@ function AdminPage() {
     );
   }
 
-  // Se não for admin ou se (2FA estiver ativo e ainda não tiver sido validado), vai para o gate
-  if (!isAdmin || (is2FAEnabled && !is2FAVerified)) {
+  // Usuário comum autenticado aguarda o redirecionamento
+  if (user && !isAdmin) {
+    return null;
+  }
+
+  // Se não estiver autenticado ou se (2FA estiver ativo e ainda não tiver sido validado), exibe o Gate
+  if (!user || !isAdmin || (is2FAEnabled && !is2FAVerified)) {
     return <AdminAccessGate />;
   }
 
@@ -578,9 +605,16 @@ function AdminDashboard() {
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
+  // Alertas de Links Quebrados Pendentes
+  const [brokenLinksCount, setBrokenLinksCount] = useState(0);
+
+  // Slug selecionado para edição rápida quando acionado por reporte
+  const [targetEditingSlug, setTargetEditingSlug] = useState<string | null>(null);
+
   useEffect(() => {
     loadAllShows();
     loadUsers();
+    loadBrokenLinksCount();
 
     const handleCatalogUpdate = (e: any) => {
       if (e?.detail && Array.isArray(e.detail)) {
@@ -597,6 +631,16 @@ function AdminDashboard() {
       window.removeEventListener("storage", handleCatalogUpdate);
     };
   }, []);
+
+  const loadBrokenLinksCount = async () => {
+    if (!db) return;
+    try {
+      const snap = await getDocs(collection(db, "broken_links"));
+      setBrokenLinksCount(snap.docs.length);
+    } catch (err) {
+      console.warn("Aviso ao carregar contagem de broken links:", err);
+    }
+  };
 
   const loadUsers = async () => {
     setLoadingUsers(true);
@@ -680,8 +724,9 @@ function AdminDashboard() {
   const menuItems: { id: AdminTab; icon: any; label: string }[] = [
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { id: "titulos", icon: Film, label: "Todos os Títulos" },
+    { id: "tmdb", icon: Sparkles, label: "Sincronizador TMDB" },
+    { id: "manutencao", icon: ShieldAlert, label: "Links Quebrados" },
     { id: "usuarios", icon: Users, label: "Usuários" },
-    { id: "manutencao", icon: Sparkles, label: "Manutenção & Links" },
     { id: "adicionar", icon: Plus, label: "Adicionar Novo" },
     { id: "categorias", icon: FolderOpen, label: "Categorias" },
   ];
@@ -766,6 +811,11 @@ function AdminDashboard() {
                 {item.id === "titulos" && (
                   <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-bold text-foreground">
                     {shows.length}
+                  </span>
+                )}
+                {item.id === "manutencao" && brokenLinksCount > 0 && (
+                  <span className="rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 text-xs font-bold animate-pulse">
+                    {brokenLinksCount}
                   </span>
                 )}
                 {item.id === "usuarios" && (
@@ -874,6 +924,8 @@ function AdminDashboard() {
               {activeTab === "dashboard" && (
                 <DashboardView
                   shows={shows}
+                  usersList={usersList}
+                  brokenLinksCount={brokenLinksCount}
                   setShows={setShows}
                   setActiveTab={setActiveTab}
                 />
@@ -889,6 +941,13 @@ function AdminDashboard() {
                   deleteShow={handleDeleteShow}
                   updateShow={handleUpdateShow}
                   setActiveTab={setActiveTab}
+                  initialEditingSlug={targetEditingSlug}
+                />
+              )}
+              {activeTab === "tmdb" && (
+                <TmdbBatchSyncTab
+                  shows={shows}
+                  onShowsUpdated={(updated) => setShows(updated)}
                 />
               )}
               {activeTab === "usuarios" && (
@@ -919,6 +978,11 @@ function AdminDashboard() {
                 <AdminMaintenanceTab
                   shows={shows}
                   onShowsUpdated={(updated) => setShows(updated)}
+                  onFixReport={(slug) => {
+                    setTargetEditingSlug(slug);
+                    setActiveTab("titulos");
+                  }}
+                  onReportsChanged={() => loadBrokenLinksCount()}
                 />
               )}
               {activeTab === "categorias" && (
@@ -943,10 +1007,14 @@ function AdminDashboard() {
 // ============================================================================
 function DashboardView({
   shows,
+  usersList = [],
+  brokenLinksCount = 0,
   setShows,
   setActiveTab,
 }: {
   shows: Show[];
+  usersList?: UserProfile[];
+  brokenLinksCount?: number;
   setShows: (shows: Show[]) => void;
   setActiveTab: (tab: AdminTab) => void;
 }) {
@@ -1075,28 +1143,15 @@ function DashboardView({
         className="hidden"
       />
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.label}
-              className="group rounded-2xl border border-white/10 bg-card/90 p-4 sm:p-5 shadow-card transition-all hover:border-white/20 relative overflow-hidden"
-            >
-              <div
-                className={`inline-grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br ${stat.color} text-white shadow-md mb-3`}
-              >
-                <Icon className="h-6 w-6" />
-              </div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-foreground">{stat.value}</p>
-              <p className="text-xs sm:text-sm text-muted-foreground font-semibold mt-1">
-                {stat.label}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+      {/* Bento Grid Pro de KPIs e Ações */}
+      <AdminBentoGrid
+        shows={shows}
+        users={usersList}
+        brokenLinksCount={brokenLinksCount}
+        onNavigateTab={setActiveTab}
+        onQuickSync={() => setActiveTab("tmdb")}
+        isSyncing={isSyncing}
+      />
 
       {/* Quick Actions + All Titles Showcase */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1287,6 +1342,7 @@ function TitulosView({
   deleteShow,
   updateShow,
   setActiveTab,
+  initialEditingSlug,
 }: {
   shows: Show[];
   totalCount: number;
@@ -1297,12 +1353,56 @@ function TitulosView({
   deleteShow: (slug: string) => Promise<ShowStorageResult> | void;
   updateShow: (slug: string, data: Partial<Show>) => Promise<ShowStorageResult> | void;
   setActiveTab: (tab: AdminTab) => void;
+  initialEditingSlug?: string | null;
 }) {
-  const [editingSlug, setEditingSlug] = useState<string | null>(null);
+  const [editingSlug, setEditingSlug] = useState<string | null>(initialEditingSlug || null);
   const [editData, setEditData] = useState<Partial<Show>>({});
   const [confirmDeleteSlug, setConfirmDeleteSlug] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<"todos" | "frageis" | "ano_invalido" | "duplicados">("todos");
+  const [isTmdbModalOpen, setIsTmdbModalOpen] = useState(false);
+
+  // Auto-inicia edição se initialEditingSlug for fornecido
+  useEffect(() => {
+    if (initialEditingSlug) {
+      const target = shows.find((s) => s.slug === initialEditingSlug);
+      if (target) {
+        startEdit(target);
+      }
+    }
+  }, [initialEditingSlug, shows]);
+
+  // Identificação de possíveis títulos duplicados
+  const duplicateSlugs = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const s of shows) {
+      const clean = normalizeTitle(s.title).toLowerCase();
+      counts[clean] = (counts[clean] || 0) + 1;
+    }
+    const dupSet = new Set<string>();
+    for (const s of shows) {
+      if (counts[normalizeTitle(s.title).toLowerCase()] > 1) {
+        dupSet.add(s.slug);
+      }
+    }
+    return dupSet;
+  }, [shows]);
+
+  const displayedShows = useMemo(() => {
+    return shows.filter((s) => {
+      if (quickFilter === "frageis") {
+        return isFragilePoster(s.poster);
+      }
+      if (quickFilter === "ano_invalido") {
+        return !s.year || s.year === "Clássico" || !/\b(19\d\d|20\d\d)\b/.test(s.year);
+      }
+      if (quickFilter === "duplicados") {
+        return duplicateSlugs.has(s.slug);
+      }
+      return true;
+    });
+  }, [shows, quickFilter, duplicateSlugs]);
 
   const startEdit = (show: Show) => {
     setEditingSlug(show.slug);
@@ -1313,6 +1413,7 @@ function TitulosView({
       synopsis: show.synopsis,
       year: show.year,
       archiveId: show.archiveId || "",
+      episodes: show.episodes || [],
     });
   };
 
@@ -1366,6 +1467,51 @@ function TitulosView({
     <div className="space-y-5 animate-in fade-in duration-300">
       {/* Search & Category Filter Bar */}
       <div className="rounded-2xl border border-white/10 bg-card/90 p-4 sm:p-5 shadow-card space-y-3.5">
+        {/* Filtros Rápidos de Diagnóstico */}
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-secondary/30 border border-white/5 overflow-x-auto text-xs font-bold [scrollbar-width:none]">
+          <button
+            onClick={() => setQuickFilter("todos")}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+              quickFilter === "todos"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Todos ({shows.length})
+          </button>
+          <button
+            onClick={() => setQuickFilter("frageis")}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap flex items-center gap-1.5 transition-all ${
+              quickFilter === "frageis"
+                ? "bg-amber-500 text-black shadow-sm"
+                : "text-amber-400/80 hover:text-amber-300"
+            }`}
+          >
+            <AlertTriangle className="h-3 w-3" />
+            Capas Frágeis ({shows.filter((s) => isFragilePoster(s.poster)).length})
+          </button>
+          <button
+            onClick={() => setQuickFilter("ano_invalido")}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+              quickFilter === "ano_invalido"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Ano Inválido / Clássico
+          </button>
+          <button
+            onClick={() => setQuickFilter("duplicados")}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+              quickFilter === "duplicados"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Possíveis Duplicados ({duplicateSlugs.size})
+          </button>
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
           <div className="relative w-full sm:max-w-md">
             <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -1380,7 +1526,7 @@ function TitulosView({
 
           <div className="flex items-center gap-3 justify-between sm:justify-end">
             <span className="text-sm text-muted-foreground font-semibold">
-              <strong className="text-foreground text-base">{shows.length}</strong> de{" "}
+              <strong className="text-foreground text-base">{displayedShows.length}</strong> de{" "}
               <strong className="text-foreground text-base">{totalCount}</strong> títulos
             </span>
 
@@ -1404,7 +1550,7 @@ function TitulosView({
                 : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary/70"
             }`}
           >
-            Todos ({totalCount})
+            Todas Categorias ({totalCount})
           </button>
           {CATEGORIES.filter((c) => c.id !== "todos").map((cat) => (
             <button
@@ -1423,18 +1569,19 @@ function TitulosView({
       </div>
 
       {/* Lista de Títulos */}
-      {shows.length === 0 ? (
+      {displayedShows.length === 0 ? (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border bg-secondary/10">
           <Film className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
           <p className="text-foreground font-bold text-lg">Nenhum título encontrado</p>
           <p className="text-sm text-muted-foreground mt-1">
             Tente buscar com outros termos ou limpe o filtro
           </p>
-          {(searchQuery || selectedCategoryFilter !== "todos") && (
+          {(searchQuery || selectedCategoryFilter !== "todos" || quickFilter !== "todos") && (
             <button
               onClick={() => {
                 setSearchQuery("");
                 setSelectedCategoryFilter("todos");
+                setQuickFilter("todos");
               }}
               className="mt-4 px-5 py-2.5 rounded-xl bg-secondary text-foreground text-sm font-bold hover:bg-secondary/80 transition-all"
             >
@@ -1444,7 +1591,7 @@ function TitulosView({
         </div>
       ) : (
         <div className="space-y-3.5">
-          {shows.map((show) => {
+          {displayedShows.map((show) => {
             const isEditing = editingSlug === show.slug;
             const isConfirmingDelete = confirmDeleteSlug === show.slug;
             const categoryInfo = CATEGORIES.find((c) => c.id === show.category);
@@ -1468,9 +1615,19 @@ function TitulosView({
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                       <div className="sm:col-span-2">
-                        <label className="block text-sm font-bold text-foreground mb-1.5">
-                          Título do Desenho
-                        </label>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-sm font-bold text-foreground">
+                            Título do Desenho
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setIsTmdbModalOpen(true)}
+                            className="inline-flex items-center gap-1.5 text-xs text-amber-400 font-bold hover:text-amber-300 transition-colors"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Buscar no TMDB
+                          </button>
+                        </div>
                         <input
                           value={editData.title || ""}
                           onChange={(e) => setEditData({ ...editData, title: e.target.value })}
@@ -1545,6 +1702,15 @@ function TitulosView({
                         onChange={(e) => setEditData({ ...editData, synopsis: e.target.value })}
                         rows={3}
                         className="w-full rounded-xl border border-white/10 bg-secondary/40 px-3.5 py-2.5 text-base text-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
+                      />
+                    </div>
+
+                    {/* Gerenciador de Episódios e Links em Lote */}
+                    <div>
+                      <EpisodesBatchManager
+                        episodes={editData.episodes || show.episodes || []}
+                        onChange={(eps) => setEditData({ ...editData, episodes: eps })}
+                        showTitle={editData.title || show.title}
                       />
                     </div>
 
@@ -1689,6 +1855,22 @@ function TitulosView({
           })}
         </div>
       )}
+
+      {/* Modal de Busca no TMDB para Edição */}
+      <TmdbSearchModal
+        isOpen={isTmdbModalOpen}
+        onClose={() => setIsTmdbModalOpen(false)}
+        initialQuery={editData.title || ""}
+        onSelect={(data) => {
+          setEditData((prev) => ({
+            ...prev,
+            title: data.title,
+            poster: data.poster,
+            year: data.year,
+            synopsis: data.synopsis,
+          }));
+        }}
+      />
     </div>
   );
 }
@@ -1711,6 +1893,8 @@ function AdicionarView({
   const [year, setYear] = useState("");
   const [synopsis, setSynopsis] = useState("");
   const [category, setCategory] = useState<CategoryId>("catalogo");
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [isTmdbModalOpen, setIsTmdbModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorInfo, setErrorInfo] = useState<{ message: string; isPermission?: boolean } | null>(null);
@@ -1758,7 +1942,7 @@ function AdicionarView({
         synopsis:
           synopsis.trim() || "Desenho clássico adicionado através do painel de administração.",
         ...(cleanArchive ? { archiveId: cleanArchive } : {}),
-        episodes: [],
+        episodes: episodes,
       };
 
       const result = await addShow(newShow);
@@ -1772,6 +1956,7 @@ function AdicionarView({
         setYear("");
         setSynopsis("");
         setCategory("catalogo");
+        setEpisodes([]);
         toast.success("Título gravado e publicado na nuvem com sucesso!");
         setTimeout(() => {
           setSuccess(false);
@@ -1902,9 +2087,19 @@ function AdicionarView({
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-foreground mb-1.5">
-                Título do Desenho *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-bold text-foreground">
+                  Título do Desenho *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsTmdbModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs text-amber-400 font-bold hover:text-amber-300 transition-colors"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Buscar no TMDB
+                </button>
+              </div>
               <input
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
@@ -2030,6 +2225,15 @@ function AdicionarView({
             </div>
           )}
 
+          {/* Gerenciador de Episódios em Lote */}
+          <div>
+            <EpisodesBatchManager
+              episodes={episodes}
+              onChange={setEpisodes}
+              showTitle={title}
+            />
+          </div>
+
           <button
             type="submit"
             disabled={isSaving}
@@ -2049,6 +2253,20 @@ function AdicionarView({
           </button>
         </form>
       </div>
+
+      {/* Modal de Busca no TMDB para Novo Cadastro */}
+      <TmdbSearchModal
+        isOpen={isTmdbModalOpen}
+        onClose={() => setIsTmdbModalOpen(false)}
+        initialQuery={title}
+        onSelect={(data) => {
+          setTitle(data.title);
+          setSlug(generateSlug(data.title));
+          setPosterUrl(data.poster);
+          setYear(data.year);
+          setSynopsis(data.synopsis);
+        }}
+      />
     </div>
   );
 }
@@ -2887,9 +3105,13 @@ interface BrokenLinkReport {
 function AdminMaintenanceTab({
   shows,
   onShowsUpdated,
+  onFixReport,
+  onReportsChanged,
 }: {
   shows: Show[];
   onShowsUpdated: (shows: Show[]) => void;
+  onFixReport?: (slug: string, episodeNumber?: number) => void;
+  onReportsChanged?: () => void;
 }) {
   const [reports, setReports] = useState<BrokenLinkReport[]>([]);
   const [loadingReports, setLoadingReports] = useState(true);
@@ -3174,6 +3396,17 @@ function AdminMaintenanceTab({
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {onFixReport && (
+                          <button
+                            onClick={() => onFixReport(report.slug, report.episodeNumber)}
+                            className="px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 text-[11px] font-bold border border-amber-500/30 flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Abrir edição do desenho para substituir a URL"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                            <span>Corrigir Link Agora</span>
+                          </button>
+                        )}
+
                         <Link
                           to="/assistir/$slug"
                           params={{ slug: report.slug }}
@@ -3186,12 +3419,15 @@ function AdminMaintenanceTab({
                         </Link>
 
                         <button
-                          onClick={() => handleDeleteReport(report.id)}
+                          onClick={async () => {
+                            await handleDeleteReport(report.id);
+                            onReportsChanged?.();
+                          }}
                           className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[11px] font-bold border border-emerald-500/30 flex items-center gap-1 cursor-pointer transition-colors"
-                          title="Marcar como resolvido e excluir reporte"
+                          title="Marcar como resolvido e remover alerta"
                         >
                           <Check className="h-3 w-3" />
-                          <span>Resolver</span>
+                          <span>Marcar como Resolvido</span>
                         </button>
                       </div>
                     </td>

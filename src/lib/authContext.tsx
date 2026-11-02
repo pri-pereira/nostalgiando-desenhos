@@ -15,6 +15,7 @@ import {
   ADMIN_EMAIL,
   ADMIN_EMAILS,
   isAdminEmail,
+  checkIsAdmin,
   saveAdminTotpSecret,
   getAdminTotpSecret,
   resetAdminTotpSecret,
@@ -67,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (firebaseUser.email) {
           ensureUserProfile(firebaseUser.uid, firebaseUser.email).catch(() => {});
         }
-        const isMaster = isAdminEmail(firebaseUser.email);
+        const isMaster = await checkIsAdmin(firebaseUser.uid, firebaseUser.email);
         if (isMaster) {
           setIsAdmin(true);
 
@@ -88,6 +89,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               console.warn("Aviso ao carregar TOTP:", err);
             }
           }
+        } else {
+          setIsAdmin(false);
+          setIs2FAVerified(false);
+          setTotpSecret(null);
+          setIsTotpConfigured(false);
         }
       } else {
         setIsAdmin(false);

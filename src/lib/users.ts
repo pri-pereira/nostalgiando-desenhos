@@ -43,6 +43,32 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 }
 
 /**
+ * Zero Trust: Valida se o usuário tem privilégio de administrador.
+ * Checa tanto a lista autorizada em variável de ambiente (VITE_ADMIN_EMAILS)
+ * quanto o documento do Firestore em users/{uid} (role === 'admin' ou isAdmin === true).
+ */
+export async function checkIsAdmin(uid?: string | null, email?: string | null): Promise<boolean> {
+  if (email && isAdminEmail(email)) {
+    return true;
+  }
+  if (!uid || !db) return false;
+
+  try {
+    const docRef = doc(db, USERS_COLLECTION, uid);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data?.role === "admin" || data?.isAdmin === true) {
+        return true;
+      }
+    }
+  } catch (err) {
+    console.warn("Aviso ao checar permissão de administrador no Firestore:", err);
+  }
+  return false;
+}
+
+/**
  * Cria ou atualiza o perfil do usuário no Firestore
  */
 export async function createUserProfile(
