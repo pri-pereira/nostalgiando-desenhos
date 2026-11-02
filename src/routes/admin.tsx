@@ -81,6 +81,13 @@ import {
 } from "@/lib/users";
 import { toast } from "sonner";
 import { generateTotpSecret, generateOtpAuthUri, getQrCodeImageUrl } from "@/lib/totp";
+import { db, collection, getDocs, updateDoc, deleteDoc, doc } from "@/lib/firebase";
+import {
+  normalizeTitle,
+  normalizeYear,
+  normalizeShow,
+  normalizeCatalogList,
+} from "@/lib/normalizeCatalog";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -93,7 +100,7 @@ export const Route = createFileRoute("/admin")({
 });
 
 // Tabs do painel
-type AdminTab = "dashboard" | "titulos" | "adicionar" | "categorias" | "usuarios";
+type AdminTab = "dashboard" | "titulos" | "adicionar" | "categorias" | "usuarios" | "manutencao";
 
 function AdminPage() {
   const { isAdmin, is2FAVerified, is2FAEnabled, isLoading } = useAuth();
@@ -674,6 +681,7 @@ function AdminDashboard() {
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { id: "titulos", icon: Film, label: "Todos os Títulos" },
     { id: "usuarios", icon: Users, label: "Usuários" },
+    { id: "manutencao", icon: Sparkles, label: "Manutenção & Links" },
     { id: "adicionar", icon: Plus, label: "Adicionar Novo" },
     { id: "categorias", icon: FolderOpen, label: "Categorias" },
   ];
@@ -906,6 +914,12 @@ function AdminDashboard() {
               )}
               {activeTab === "adicionar" && (
                 <AdicionarView addShow={handleAddShow} setActiveTab={setActiveTab} />
+              )}
+              {activeTab === "manutencao" && (
+                <AdminMaintenanceTab
+                  shows={shows}
+                  onShowsUpdated={(updated) => setShows(updated)}
+                />
               )}
               {activeTab === "categorias" && (
                 <CategoriasView
@@ -2854,3 +2868,341 @@ function ArchiveMetadataCounter({ archiveId }: { archiveId: string }) {
     </p>
   );
 }
+
+// ============================================================================
+// ABA DE MANUTENÇÃO: LINKS QUEBRADOS & HIGIENIZADOR DE CATÁLOGO EM 1 CLIQUE
+// ============================================================================
+interface BrokenLinkReport {
+  id: string;
+  slug: string;
+  showTitle: string;
+  episodeNumber: number;
+  episodeTitle: string;
+  reportedBy: string;
+  reason?: string;
+  createdAt: string;
+  status: string;
+}
+
+function AdminMaintenanceTab({
+  shows,
+  onShowsUpdated,
+}: {
+  shows: Show[];
+  onShowsUpdated: (shows: Show[]) => void;
+}) {
+  const [reports, setReports] = useState<BrokenLinkReport[]>([]);
+  const [loadingReports, setLoadingReports] = useState(true);
+  const [isSanitizing, setIsSanitizing] = useState(false);
+  const [sanitizeProgress, setSanitizeProgress] = useState<string | null>(null);
+
+  // Carrega lista de links quebrados do Firestore
+  const loadReports = async () => {
+    if (!db) {
+      setLoadingReports(false);
+      return;
+    }
+    setLoadingReports(true);
+    try {
+      const snap = await getDocs(collection(db, "broken_links"));
+      if (!snap.empty) {
+        const list: BrokenLinkReport[] = snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            slug: data.slug || "",
+            showTitle: data.showTitle || data.slug || "Sem título",
+            episodeNumber: typeof data.episodeNumber === "number" ? data.episodeNumber : 1,
+            episodeTitle: data.episodeTitle || `Episódio ${data.episodeNumber || 1}`,
+            reportedBy: data.reportedBy || "Visitante",
+            reason: data.reason || "Não especificado",
+            createdAt: data.createdAt || new Date().toISOString(),
+            status: data.status || "pendente",
+          };
+        });
+        // Mais recentes primeiro
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setReports(list);
+      } else {
+        setReports([]);
+      }
+    } catch (err) {
+      console.warn("Aviso ao carregar reportes:", err);
+      toast.error("Erro ao carregar relatórios de links quebrados.");
+    } finally {
+      setLoadingReports(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReports();
+  }, []);
+
+  // Excluir ou resolver reporte
+  const handleDeleteReport = async (reportId: string) => {
+    if (!db) return;
+    try {
+      await deleteDoc(doc(db, "broken_links", reportId));
+      setReports((prev) => prev.filter((r) => r.id !== reportId));
+      toast.success("Reporte removido com sucesso!");
+    } catch (err) {
+      console.error("Erro ao deletar reporte:", err);
+      toast.error("Erro ao remover o reporte.");
+    }
+  };
+
+  // Higienizador do Catálogo em 1 Clique diretamente no Firestore
+  const handleSanitizeCatalog = async () => {
+    if (!db) {
+      toast.error("Firebase Firestore não inicializado.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Deseja iniciar a higienização do acervo no Firestore? Os títulos serão padronizados em Title Case (ex: 'TORO E PANCHO' -> 'Toro e Pancho') e os anos serão extraídos para 4 dígitos."
+    );
+    if (!confirmed) return;
+
+    setIsSanitizing(true);
+    setSanitizeProgress("Buscando documentos do acervo no Firestore...");
+
+    try {
+      const snap = await getDocs(collection(db, "shows"));
+      if (snap.empty) {
+        toast.info("Nenhum documento encontrado na coleção shows.");
+        setIsSanitizing(false);
+        setSanitizeProgress(null);
+        return;
+      }
+
+      let updatedCount = 0;
+      let totalDocs = snap.docs.length;
+
+      for (let i = 0; i < snap.docs.length; i++) {
+        const d = snap.docs[i];
+        const data = d.data();
+        const currentTitle = data.title || "";
+        const currentYear = data.year || "";
+
+        const cleanTitle = normalizeTitle(currentTitle);
+        const cleanYear = normalizeYear(currentYear).displayYear;
+
+        const needsTitleFix = cleanTitle !== currentTitle && cleanTitle.length > 0;
+        const needsYearFix = cleanYear !== currentYear && cleanYear.length > 0;
+
+        if (needsTitleFix || needsYearFix) {
+          const payload: Record<string, any> = {
+            updatedAt: new Date().toISOString(),
+          };
+          if (needsTitleFix) payload.title = cleanTitle;
+          if (needsYearFix) payload.year = cleanYear;
+
+          await updateDoc(doc(db, "shows", d.id), payload);
+          updatedCount++;
+        }
+
+        setSanitizeProgress(`Higienizando ${i + 1} de ${totalDocs} títulos...`);
+      }
+
+      // Limpa caches locais para que as alterações reflitam imediatamente
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("nostalgiando_catalog_cache_v2");
+        localStorage.removeItem("nostalgiando_all_shows");
+      }
+
+      // Recarrega catálogo
+      const freshShows = await getAllShows(true);
+      onShowsUpdated(freshShows);
+
+      toast.success(
+        `Higienização concluída! ${updatedCount} de ${totalDocs} títulos foram padronizados no Firestore.`
+      );
+      setSanitizeProgress(
+        `Sucesso: ${updatedCount} títulos foram atualizados e padronizados no Firestore.`
+      );
+    } catch (err: any) {
+      console.error("Erro na higienização do acervo:", err);
+      toast.error("Erro ao higienizar acervo no Firestore: " + (err?.message || "Erro desconhecido"));
+    } finally {
+      setIsSanitizing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-300">
+      {/* Header da Aba */}
+      <div className="rounded-3xl border border-white/10 bg-card/80 backdrop-blur-xl p-6 sm:p-8 shadow-card">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="rounded-full bg-primary/20 px-3 py-0.5 text-xs font-black uppercase tracking-wider text-primary border border-primary/30">
+                Manutenção do Acervo
+              </span>
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            </div>
+            <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+              Higienização & Links Quebrados
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground max-w-2xl">
+              Monitore episódios reportados por assinantes e padronize títulos e anos de todo o catálogo com 1 clique no Firestore.
+            </p>
+          </div>
+
+          <button
+            onClick={loadReports}
+            className="px-4 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-xs font-bold text-foreground border border-white/10 flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loadingReports ? "animate-spin" : ""}`} />
+            Atualizar Relatórios
+          </button>
+        </div>
+      </div>
+
+      {/* =================================================================
+          SEÇÃO 1: HIGIENIZADOR EM 1 CLIQUE (DATA SANITIZER NO BANCO)
+          ================================================================= */}
+      <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-card via-card to-primary/5 p-6 sm:p-8 shadow-card">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <h3 className="font-display text-xl font-bold text-foreground">
+                Padronização Automática em 1 Clique
+              </h3>
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              Varre todos os documentos da coleção <code className="text-primary font-mono bg-black/40 px-1.5 py-0.5 rounded">shows</code> no Firestore aplicando regras estritas de Title Case em português (preservando preposições e siglas como <em>X-Men</em> e <em>He-Man</em>) e extrai anos válidos de 4 dígitos.
+            </p>
+
+            {sanitizeProgress && (
+              <div className="mt-3 p-3 rounded-2xl bg-secondary/60 border border-primary/30 text-xs text-primary font-semibold animate-pulse flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                <span>{sanitizeProgress}</span>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleSanitizeCatalog}
+            disabled={isSanitizing}
+            className="w-full md:w-auto min-h-[50px] px-7 py-3 rounded-2xl bg-gradient-to-r from-primary via-amber-500 to-amber-600 text-primary-foreground font-bold text-sm shadow-[0_0_20px_rgba(217,119,6,0.35)] hover:shadow-[0_0_30px_rgba(217,119,6,0.55)] transition-all hover:scale-102 active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 cursor-pointer shrink-0"
+          >
+            {isSanitizing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Higienizando Banco...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                <span>Padronizar Catálogo no Firestore</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* =================================================================
+          SEÇÃO 2: RELATÓRIO DE LINKS QUEBRADOS (BROKEN LINKS)
+          ================================================================= */}
+      <div className="rounded-3xl border border-white/10 bg-card/90 backdrop-blur-xl p-6 sm:p-8 shadow-card">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div>
+              <h3 className="font-display text-lg font-bold text-foreground">
+                Episódios Reportados com Problema
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {reports.length} {reports.length === 1 ? "reporte registrado" : "reportes registrados"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {loadingReports ? (
+          <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-xs font-semibold">Carregando reportes de links...</p>
+          </div>
+        ) : reports.length === 0 ? (
+          <div className="p-10 rounded-2xl border border-dashed border-white/10 text-center bg-secondary/20">
+            <Check className="h-10 w-10 mx-auto text-emerald-400 mb-2 opacity-80" />
+            <p className="text-sm font-bold text-foreground">Nenhum link quebrado reportado!</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Todos os episódios reportados foram resolvidos ou estão funcionando normalmente.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-white/10">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-secondary/50 text-muted-foreground font-bold uppercase tracking-wider border-b border-white/10">
+                <tr>
+                  <th className="px-4 py-3">Desenho / Título</th>
+                  <th className="px-4 py-3">Episódio</th>
+                  <th className="px-4 py-3">Motivo</th>
+                  <th className="px-4 py-3">Reportado por</th>
+                  <th className="px-4 py-3">Data</th>
+                  <th className="px-4 py-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {reports.map((report) => (
+                  <tr key={report.id} className="hover:bg-secondary/30 transition-colors">
+                    <td className="px-4 py-3 font-bold text-foreground">
+                      {report.showTitle}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      Ep. {report.episodeNumber} · {report.episodeTitle}
+                    </td>
+                    <td className="px-4 py-3 text-amber-300 font-medium">
+                      {report.reason}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground font-mono text-[11px]">
+                      {report.reportedBy}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {new Date(report.createdAt).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          to="/assistir/$slug"
+                          params={{ slug: report.slug }}
+                          target="_blank"
+                          className="px-3 py-1.5 rounded-lg bg-secondary/80 hover:bg-secondary text-foreground text-[11px] font-bold border border-white/10 flex items-center gap-1 cursor-pointer"
+                          title="Abrir no player para testar"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          <span>Testar</span>
+                        </Link>
+
+                        <button
+                          onClick={() => handleDeleteReport(report.id)}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[11px] font-bold border border-emerald-500/30 flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Marcar como resolvido e excluir reporte"
+                        >
+                          <Check className="h-3 w-3" />
+                          <span>Resolver</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+

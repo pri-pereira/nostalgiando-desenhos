@@ -3,6 +3,7 @@ import {
   auth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   type User,
@@ -31,6 +32,7 @@ interface AuthContextType {
   totpSecret: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   loginAsAdmin: (code: string) => boolean;
   verify2FA: (pinOrCode: string) => Promise<boolean>;
@@ -153,6 +155,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await createUserProfile(cred.user.uid, email);
   };
 
+  const resetPassword = async (email: string) => {
+    if (!auth) throw new Error("Firebase Auth não inicializado");
+    const cleanEmail = email.trim().toLowerCase();
+    await sendPasswordResetEmail(auth, cleanEmail);
+  };
+
   /**
    * Valida o código do aplicativo Google Authenticator (TOTP)
    */
@@ -248,6 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         totpSecret,
         login,
         register,
+        resetPassword,
         logout,
         loginAsAdmin,
         verify2FA,

@@ -1,3 +1,5 @@
+import { db, doc, setDoc, getDocs, collection } from "./firebase";
+
 export interface WatchHistoryItem {
   showSlug: string;
   showTitle: string;
@@ -233,10 +235,71 @@ export const saveWatchProgress = (
       markEpisodeWatched(userId, data.showSlug, data.episodeId);
     }
 
+    // Sincroniza com Firestore se o usuário estiver logado
+    if (userId && db) {
+      const histDocRef = doc(db, "users", userId, "watchHistory", data.showSlug);
+      setDoc(
+        histDocRef,
+        {
+          slug: data.showSlug,
+          title: data.showTitle,
+          poster: data.showPoster,
+          episodeId: data.episodeId,
+          episodeIndex: data.episodeIndex,
+          episodeTitle: data.episodeTitle,
+          timestamp,
+          duration,
+          progressPercent,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      ).catch((e) => console.warn("Aviso ao salvar histórico no Firestore:", e));
+    }
+
     window.dispatchEvent(new CustomEvent("watch_history_updated", { detail: history }));
   } catch (err) {
     console.error("Erro ao salvar histórico de visualização:", err);
   }
+};
+
+/**
+ * Sincroniza o histórico de visualização da nuvem (Firestore) para o cache local
+ */
+export const syncWatchHistoryFromCloud = async (userId: string): Promise<WatchHistoryItem[]> => {
+  if (typeof window === "undefined" || !userId || !db) return getWatchHistory(userId);
+  try {
+    const colRef = collection(db, "users", userId, "watchHistory");
+    const snap = await getDocs(colRef);
+    if (!snap.empty) {
+      const cloudItems: WatchHistoryItem[] = snap.docs.map((d) => {
+        const item = d.data();
+        return {
+          showSlug: item.slug || d.id,
+          showTitle: item.title || "",
+          showPoster: item.poster || "",
+          episodeId: item.episodeId || "ep-1",
+          episodeIndex: typeof item.episodeIndex === "number" ? item.episodeIndex : 0,
+          episodeTitle: item.episodeTitle || "",
+          timestamp: typeof item.timestamp === "number" ? item.timestamp : 0,
+          duration: typeof item.duration === "number" ? item.duration : 1200,
+          progressPercent: typeof item.progressPercent === "number" ? item.progressPercent : 0,
+          watchedAt: item.updatedAt || new Date().toISOString(),
+        };
+      });
+
+      // Ordena por data decrescente
+      cloudItems.sort((a, b) => new Date(b.watchedAt).getTime() - new Date(a.watchedAt).getTime());
+
+      // Mescla com local mantendo o mais recente
+      const key = getStorageKey(userId);
+      localStorage.setItem(key, JSON.stringify(cloudItems.slice(0, 20)));
+      window.dispatchEvent(new CustomEvent("watch_history_updated", { detail: cloudItems }));
+      return cloudItems;
+    }
+  } catch (err) {
+    console.warn("Aviso ao sincronizar histórico da nuvem:", err);
+  }
+  return getWatchHistory(userId);
 };
 
 export const getWatchHistory = (userId?: string | null): WatchHistoryItem[] => {

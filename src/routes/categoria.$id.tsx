@@ -9,10 +9,13 @@ import {
   Filter,
   Layers,
   ChevronRight,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PosterCard } from "@/components/PosterCard";
 import { CATEGORIES, getAllShows, getCachedShows, type Show, type CategoryId } from "@/data/shows";
+import { sortRecentlyAdded, normalizeCatalogList } from "@/lib/normalizeCatalog";
 
 export const Route = createFileRoute("/categoria/$id")({
   head: ({ params }) => {
@@ -30,15 +33,19 @@ export const Route = createFileRoute("/categoria/$id")({
   component: CategoriaView,
 });
 
+const PAGE_SIZE = 24;
+
 function CategoriaView() {
   const { id: currentCategoryParam } = useParams({ from: "/categoria/$id" });
   const [activeCategoryId, setActiveCategoryId] = useState<string>(currentCategoryParam || "catalogo");
   const [shows, setShows] = useState<Show[]>(() => getCachedShows());
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"az" | "recent">("az");
+  const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
 
   useEffect(() => {
     setActiveCategoryId(currentCategoryParam || "catalogo");
+    setVisibleCount(PAGE_SIZE);
   }, [currentCategoryParam]);
 
   useEffect(() => {
@@ -56,7 +63,7 @@ function CategoriaView() {
 
     const handleUpdate = (e: any) => {
       if (e?.detail && Array.isArray(e.detail)) {
-        setShows(e.detail);
+        setShows(normalizeCatalogList(e.detail));
       } else {
         setShows(getCachedShows());
       }
@@ -71,15 +78,17 @@ function CategoriaView() {
   }, []);
 
   const currentCategory = useMemo(() => {
-    return CATEGORIES.find((c) => c.id === activeCategoryId) || {
-      id: "catalogo",
-      label: "Catálogo Completo",
-      shortLabel: "Catálogo",
-      description: "Todos os desenhos e animações disponíveis no Nostalgiando.",
-    };
+    return (
+      CATEGORIES.find((c) => c.id === activeCategoryId) || {
+        id: "catalogo",
+        label: "Catálogo Completo",
+        shortLabel: "Catálogo",
+        description: "Todos os desenhos e animações disponíveis no Nostalgiando.",
+      }
+    );
   }, [activeCategoryId]);
 
-  // Filtra títulos por categoria e por busca, com ordenação alfabética (A a Z)
+  // Filtra títulos por categoria e por busca, com ordenação inteligente
   const filteredShows = useMemo(() => {
     let list = shows;
 
@@ -100,20 +109,7 @@ function CategoriaView() {
 
     // Classificação baseada na escolha do usuário
     if (sortOrder === "recent") {
-      // Ordena por data decrescente; itens sem data vão para o final
-      // Se tivermos que ordenar sem data, vamos preservar a ordem reversa (útil para dados mockados em que os últimos estão no final do array)
-      const listCopy = [...list];
-      return listCopy.sort((a, b) => {
-        const timeA = (a as any).updatedAt ? new Date((a as any).updatedAt).getTime() : 0;
-        const timeB = (b as any).updatedAt ? new Date((b as any).updatedAt).getTime() : 0;
-        if (timeA !== timeB) {
-          return timeB - timeA; // Maior timestamp vem primeiro
-        }
-        // Se ambos não têm data (ou a mesma data), mantemos a ordem de array reverso
-        const indexA = list.indexOf(a);
-        const indexB = list.indexOf(b);
-        return indexB - indexA;
-      });
+      return sortRecentlyAdded(list);
     }
 
     // Padrão: Ordem alfabética (A a Z)
@@ -121,6 +117,17 @@ function CategoriaView() {
       (a?.title || "").localeCompare(b?.title || "", "pt-BR", { sensitivity: "base" })
     );
   }, [shows, activeCategoryId, searchQuery, sortOrder]);
+
+  // Paginação visual sob demanda para não sobrecarregar o DOM
+  const visibleShows = useMemo(() => {
+    return filteredShows.slice(0, visibleCount);
+  }, [filteredShows, visibleCount]);
+
+  const hasMore = visibleCount < filteredShows.length;
+
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredShows.length));
+  };
 
   return (
     <div className="min-h-screen bg-background pt-24 sm:pt-28 pb-16">
@@ -131,7 +138,7 @@ function CategoriaView() {
         <div className="mb-6 flex items-center justify-between">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-primary transition-colors py-1.5 px-3 rounded-xl hover:bg-secondary/40 border border-transparent hover:border-white/5"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-primary transition-colors py-1.5 px-3 rounded-xl hover:bg-secondary/40 border border-transparent hover:border-white/5 active:scale-95"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar para o Início
@@ -139,14 +146,14 @@ function CategoriaView() {
 
           <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
             <Film className="h-3.5 w-3.5 text-primary" />
-            <strong className="text-foreground">{filteredShows.length}</strong> títulos disponíveis
+            <strong className="text-foreground">{filteredShows.length}</strong> títulos encontrados
           </span>
         </div>
 
-        {/* Header da Categoria */}
-        <div className="relative rounded-3xl border border-white/10 bg-gradient-to-b from-secondary/40 via-card/80 to-card p-6 sm:p-8 shadow-card overflow-hidden mb-8">
+        {/* Header da Categoria com Efeito Glossy Glassmorphism */}
+        <div className="relative rounded-3xl border border-white/10 bg-gradient-to-b from-secondary/40 via-card/80 to-card p-6 sm:p-8 shadow-card overflow-hidden mb-8 backdrop-blur-xl">
           <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-          
+
           <div className="relative z-10">
             <div className="flex flex-wrap items-center gap-2 mb-2.5">
               <span className="rounded-full bg-primary/20 px-3 py-0.5 text-xs font-black uppercase tracking-wider text-primary border border-primary/30">
@@ -160,46 +167,56 @@ function CategoriaView() {
             <h1 className="font-display text-2xl sm:text-4xl font-extrabold text-foreground tracking-tight">
               {currentCategory.label}
             </h1>
-            {currentCategory.description && (
-              <p className="mt-2 text-sm sm:text-base text-muted-foreground max-w-3xl leading-relaxed">
-                {currentCategory.description}
-              </p>
-            )}
+            <p className="mt-2 text-sm sm:text-base text-muted-foreground max-w-3xl leading-relaxed">
+              {currentCategory.description}
+            </p>
 
-            {/* Barra de Busca e Filtros Rápidos */}
-            <div className="mt-6 flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            {/* Barra de Filtros e Busca Rápida */}
+            <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5 pt-4 border-t border-white/5">
+              {/* Input de Busca */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
-                  type="search"
+                  type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={`Buscar em ${currentCategory.label}...`}
-                  className="h-12 w-full rounded-2xl border border-white/10 bg-secondary/50 pl-11 pr-4 text-base text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setVisibleCount(PAGE_SIZE);
+                  }}
+                  placeholder="Filtrar por nome ou ano..."
+                  className="w-full h-11 rounded-2xl border border-white/10 bg-secondary/50 pl-10 pr-9 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
-              
-              <div className="flex bg-secondary/40 rounded-2xl border border-white/10 p-1 shrink-0 h-12 overflow-hidden">
+
+              {/* Botões de Ordenação */}
+              <div className="flex items-center gap-1.5 bg-secondary/30 p-1 rounded-2xl border border-white/5 self-start sm:self-auto">
                 <button
                   onClick={() => setSortOrder("az")}
-                  className={`flex-1 sm:px-4 flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     sortOrder === "az"
-                      ? "bg-primary text-primary-foreground shadow-sm scale-100"
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/5 scale-95"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Filter className="h-4 w-4" />
-                  A-Z
+                  Ordem Alfabética (A-Z)
                 </button>
                 <button
                   onClick={() => setSortOrder("recent")}
-                  className={`flex-1 sm:px-4 flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                     sortOrder === "recent"
-                      ? "bg-primary text-primary-foreground shadow-sm scale-100"
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/5 scale-95"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Sparkles className="h-4 w-4" />
+                  <Sparkles className="h-3.5 w-3.5" />
                   Mais Recentes
                 </button>
               </div>
@@ -214,7 +231,7 @@ function CategoriaView() {
                     key={cat.id}
                     to="/categoria/$id"
                     params={{ id: cat.id }}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                    className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                       isSelected
                         ? "bg-primary text-primary-foreground shadow-md scale-100"
                         : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary/70 border border-white/5"
@@ -228,15 +245,35 @@ function CategoriaView() {
           </div>
         </div>
 
-        {/* Grade de Pôsteres (Grid Responsivo) */}
-        {filteredShows.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4.5">
-            {filteredShows.map((show) => (
-              <div key={show.slug} className="animate-in fade-in zoom-in-95 duration-300">
-                <PosterCard show={show} />
+        {/* Grade de Pôsteres com Lazy Loading */}
+        {visibleShows.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4.5">
+              {visibleShows.map((show) => (
+                <div key={show.slug} className="animate-in fade-in zoom-in-95 duration-200">
+                  <PosterCard show={show} className="w-full" />
+                </div>
+              ))}
+            </div>
+
+            {/* Botão Carregar Mais (Lazy Rendering) */}
+            {hasMore && (
+              <div className="mt-12 text-center">
+                <div className="inline-flex flex-col items-center gap-2">
+                  <button
+                    onClick={handleLoadMore}
+                    className="min-h-[50px] px-8 py-3.5 rounded-full bg-secondary/80 hover:bg-secondary border border-white/10 hover:border-primary/50 text-foreground font-bold text-sm shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer group"
+                  >
+                    <ChevronDown className="h-4 w-4 text-primary group-hover:translate-y-0.5 transition-transform" />
+                    Carregar Mais Desenhos ({filteredShows.length - visibleCount} restantes)
+                  </button>
+                  <p className="text-xs text-muted-foreground">
+                    Exibindo {visibleShows.length} de {filteredShows.length} títulos
+                  </p>
+                </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         ) : (
           /* Estado Vazio */
           <div className="rounded-3xl border border-dashed border-white/10 bg-card/40 p-12 text-center my-8">
@@ -251,7 +288,7 @@ function CategoriaView() {
             </p>
             <button
               onClick={() => setSearchQuery("")}
-              className="mt-4 px-5 py-2 rounded-xl bg-secondary text-sm font-semibold text-foreground hover:bg-secondary/80 transition-colors"
+              className="mt-4 px-5 py-2.5 rounded-xl bg-secondary text-sm font-semibold text-foreground hover:bg-secondary/80 transition-colors cursor-pointer"
             >
               Limpar Busca
             </button>

@@ -107,6 +107,9 @@ export async function ensureUserProfile(
       }
       if (isMasterAdmin && data.role !== "admin") {
         updatedFields.role = "admin";
+      } else if (!isMasterAdmin && data.role !== "user") {
+        // Zero Trust: Bloqueia qualquer usuário comum que tente ter role de admin
+        updatedFields.role = "user";
       }
       if (!data.status) {
         updatedFields.status = "ativo";
@@ -131,10 +134,10 @@ export async function ensureUserProfile(
         email: (data.email || email).trim().toLowerCase(),
         name: data.name || customName || email.split("@")[0]?.replace(/[._-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) || "Usuário",
         whatsapp: data.whatsapp || undefined,
-        role: isMasterAdmin ? "admin" : (data.role as "admin" | "user" || "user"),
+        role: isMasterAdmin ? "admin" : "user",
         paymentStatus: (isMasterAdmin ? "ativo" : (data.paymentStatus || "pendente")) as "ativo" | "pendente" | "cancelado",
-        planName: data.planName || (isMasterAdmin ? "Admin" : undefined),
-        planActivatedAt: data.planActivatedAt || undefined,
+        planName: isMasterAdmin ? "Admin" : data.planName,
+        planActivatedAt: isMasterAdmin ? (data.planActivatedAt || new Date().toISOString()) : data.planActivatedAt,
         createdAt: data.createdAt || new Date().toISOString(),
         lastLogin: new Date().toISOString(),
         status: (data.status as "ativo" | "inativo") || "ativo",
@@ -144,6 +147,39 @@ export async function ensureUserProfile(
     console.warn("Aviso ao verificar perfil no Firestore:", err);
   }
   return createUserProfile(uid, email, customName);
+}
+
+/**
+ * Atualiza com segurança o perfil do próprio usuário (Zero Trust: impede escalação de privilégios)
+ */
+export async function updateUserProfileSafe(
+  uid: string,
+  safeData: { name?: string; whatsapp?: string }
+): Promise<void> {
+  if (!db) return;
+  try {
+    const payload: Record<string, any> = {};
+    if (safeData.name !== undefined) {
+      payload.name = safeData.name.trim().slice(0, 80);
+    }
+    if (safeData.whatsapp !== undefined) {
+      payload.whatsapp = safeData.whatsapp.trim().slice(0, 30);
+    }
+    // Proteção rigorosa: nunca permitir que campos sensíveis sejam injetados aqui
+    delete (payload as any).role;
+    delete (payload as any).isAdmin;
+    delete (payload as any).paymentStatus;
+    delete (payload as any).planName;
+    delete (payload as any).planActivatedAt;
+
+    if (Object.keys(payload).length > 0) {
+      const userRef = doc(db, USERS_COLLECTION, uid);
+      await updateDoc(userRef, payload);
+    }
+  } catch (err) {
+    console.error("Erro ao atualizar perfil com segurança:", err);
+    throw err;
+  }
 }
 
 /**

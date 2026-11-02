@@ -20,7 +20,13 @@ import {
   Search,
   X,
   Cast,
+  AlertTriangle,
+  Monitor,
+  Clapperboard,
+  Send,
 } from "lucide-react";
+import { toast } from "sonner";
+import { db, collection, addDoc } from "@/lib/firebase";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PosterCard } from "@/components/PosterCard";
 import { CategoriesNavPanel } from "@/components/CategoriesNavPanel";
@@ -80,6 +86,13 @@ function Watch() {
   // Resolvemos o show real no cliente (atualiza da nuvem/Firestore mesmo se houver mock no SSR)
   const [show, setShow] = useState<Show | undefined>(() => serverShow || getStaticShow(slug));
   const [allShows, setAllShows] = useState<Show[]>(() => getCachedShows());
+
+  // Estados de Imersão e Retenção (TV CRT, Cinema Mode, Reporte de Links)
+  const [isCrtEnabled, setIsCrtEnabled] = useState(false);
+  const [isCinemaMode, setIsCinemaMode] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -611,6 +624,48 @@ function Watch() {
     }
   };
 
+  // Reportar episódio com problema / link quebrado
+  const handleReportBrokenLink = async () => {
+    if (!show || !episode) return;
+    const epNum = current + 1;
+    const sessionKey = `reported_${show.slug}_${episode.id || epNum}`;
+
+    if (typeof window !== "undefined" && sessionStorage.getItem(sessionKey)) {
+      toast.info("Você já reportou este episódio nesta sessão. Nossa equipe técnica já foi alertada!");
+      setIsReportModalOpen(false);
+      return;
+    }
+
+    setIsSubmittingReport(true);
+    try {
+      if (db) {
+        await addDoc(collection(db, "broken_links"), {
+          slug: show.slug,
+          showTitle: show.title,
+          episodeNumber: epNum,
+          episodeTitle: episode.title || `Episódio ${epNum}`,
+          reportedBy: user?.email || user?.uid || "Visitante",
+          reason: reportReason.trim() || "Vídeo não carrega / quebrado",
+          createdAt: new Date().toISOString(),
+          status: "pendente",
+        });
+      }
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(sessionKey, "true");
+      }
+
+      toast.success("Obrigado! O episódio foi reportado e nossa equipe irá consertá-lo em breve.");
+      setIsReportModalOpen(false);
+      setReportReason("");
+    } catch (err) {
+      console.warn("Aviso ao reportar link quebrado:", err);
+      toast.error("Não foi possível enviar o aviso no momento. Tente novamente mais tarde.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
   const handlePrev = () => {
     if (current > 0) {
       setCurrent(current - 1);
@@ -714,8 +769,36 @@ function Watch() {
           </div>
 
           {/* COLUNA CENTRAL: PLAYER DE VÍDEO E DETALHES DO EPISÓDIO */}
-          <div className="lg:col-span-6 xl:col-span-6 order-1 lg:order-2 space-y-4">
-            <div className="relative aspect-video w-full overflow-hidden rounded-3xl border border-border/80 bg-black shadow-2xl">
+          <div className={`order-1 lg:order-2 space-y-4 transition-all duration-300 ${
+            isCinemaMode
+              ? "lg:col-span-12 relative z-50 max-w-5xl mx-auto w-full"
+              : "lg:col-span-6 xl:col-span-6"
+          }`}>
+            {/* Overlay de Modo Cinema (apaga as luzes ao redor) */}
+            {isCinemaMode && (
+              <div
+                onClick={() => setIsCinemaMode(false)}
+                className="fixed inset-0 bg-black/92 z-40 backdrop-blur-md animate-in fade-in duration-300 flex items-start justify-center pt-6"
+              >
+                <button
+                  onClick={() => setIsCinemaMode(false)}
+                  className="px-4 py-2 rounded-full bg-secondary/80 text-foreground text-xs font-bold border border-white/20 hover:bg-secondary flex items-center gap-2 cursor-pointer shadow-xl"
+                >
+                  <X className="h-4 w-4" />
+                  <span>Sair do Modo Cinema (ou clique fora)</span>
+                </button>
+              </div>
+            )}
+
+            <div className={`relative aspect-video w-full overflow-hidden transition-all duration-500 bg-black shadow-2xl ${
+              isCrtEnabled
+                ? "crt-frame border-4 border-zinc-800"
+                : "rounded-3xl border border-border/80"
+            } ${isCinemaMode ? "relative z-50 shadow-[0_0_80px_rgba(0,0,0,1)]" : ""}`}>
+              {/* Efeito TV de Tubo Retrô (CRT) com Scanlines */}
+              {isCrtEnabled && (
+                <div className="crt-overlay absolute inset-0 z-20 pointer-events-none" />
+              )}
               {isLoading ? (
                 <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center bg-black/95">
                   <div className="relative mb-3 flex items-center justify-center">
@@ -891,7 +974,35 @@ function Watch() {
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                    {/* Toggle TV Tubo (CRT) */}
+                    <button
+                      onClick={() => setIsCrtEnabled(!isCrtEnabled)}
+                      className={`h-10 px-3.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
+                        isCrtEnabled
+                          ? "bg-amber-500/25 border-amber-500/60 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]"
+                          : "bg-secondary/50 border-white/10 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      }`}
+                      title="Ativar/desativar moldura retrô de TV de Tubo CRT com scanlines"
+                    >
+                      <Tv className="h-3.5 w-3.5 text-amber-400" />
+                      <span>{isCrtEnabled ? "CRT Ativo" : "TV CRT"}</span>
+                    </button>
+
+                    {/* Botão Modo Cinema */}
+                    <button
+                      onClick={() => setIsCinemaMode(!isCinemaMode)}
+                      className={`h-10 px-3.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
+                        isCinemaMode
+                          ? "bg-primary text-primary-foreground border-primary shadow-md"
+                          : "bg-secondary/50 border-white/10 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      }`}
+                      title="Apaga as luzes ao redor do player para foco no vídeo"
+                    >
+                      <Clapperboard className="h-3.5 w-3.5" />
+                      <span>{isCinemaMode ? "Sair Cinema" : "Modo Cinema"}</span>
+                    </button>
+
                     <button onClick={() => setInList(!inList)} className="flex-1 sm:flex-none h-10 px-4 rounded-xl border border-white/10 bg-secondary/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer justify-center">
                       {inList ? <Check className="h-4 w-4 text-emerald-400" /> : <Plus className="h-4 w-4" />} Lista
                     </button>
@@ -924,14 +1035,85 @@ function Watch() {
                 </div>
               </div>
 
-              {/* Avaliação das Estrelas */}
+              {/* Botão Discreto de Reportar Episódio e Avaliação das Estrelas */}
               <div className="mt-4 pt-4 border-t border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5" /> Avalie este Título
-                </span>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" /> Avalie este Título
+                  </span>
+
+                  <button
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground/75 hover:text-amber-400 transition-colors py-1 px-2 rounded-lg hover:bg-secondary/40 cursor-pointer"
+                    title="Reportar link quebrado ou vídeo indisponível"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Problema no vídeo? Reportar episódio</span>
+                  </button>
+                </div>
+
                 <StarRating slug={show.slug} readOnly={false} />
               </div>
             </div>
+
+            {/* Modal de Reporte de Link Quebrado */}
+            {isReportModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
+                <div className="w-full max-w-md rounded-3xl border border-white/15 bg-card/95 backdrop-blur-2xl p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+                  <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                    <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>Reportar Episódio com Problema</span>
+                    </div>
+                    <button
+                      onClick={() => setIsReportModalOpen(false)}
+                      className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                    Ajude-nos a manter os clássicos sempre acessíveis! Nossa equipe técnica será notificada imediatamente para corrigir este episódio.
+                  </p>
+
+                  <div className="rounded-2xl bg-secondary/50 p-3.5 mb-4 text-xs space-y-1 border border-white/5 font-medium">
+                    <p><strong className="text-foreground">Desenho:</strong> <span className="text-primary font-bold">{show.title}</span></p>
+                    <p><strong className="text-foreground">Episódio:</strong> {episode.title}</p>
+                  </div>
+
+                  <div className="mb-5">
+                    <label className="block text-xs font-bold text-foreground mb-1.5">
+                      Qual problema você observou? (Opcional)
+                    </label>
+                    <textarea
+                      value={reportReason}
+                      onChange={(e) => setReportReason(e.target.value)}
+                      placeholder="Ex: O player não inicia, áudio está mudo, tela preta, etc..."
+                      rows={3}
+                      className="w-full rounded-2xl border border-white/10 bg-secondary/40 p-3 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all resize-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2.5">
+                    <button
+                      onClick={() => setIsReportModalOpen(false)}
+                      className="px-4 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleReportBrokenLink}
+                      disabled={isSubmittingReport}
+                      className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      <span>{isSubmittingReport ? "Enviando..." : "Enviar Reporte"}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Seção de Comentários (Youtube Style) */}
             <CommentsSection slug={show.slug} />
@@ -1200,9 +1382,11 @@ function Watch() {
             </Link>
           </div>
 
-          <div className="mt-6 -mx-4 flex gap-4 overflow-x-auto px-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mt-6 -mx-4 flex gap-3 sm:gap-4 overflow-x-auto px-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {related.map((s) => (
-              <PosterCard key={s.slug} show={s} />
+              <div key={s.slug} className="shrink-0">
+                <PosterCard show={s} />
+              </div>
             ))}
           </div>
         </section>

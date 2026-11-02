@@ -19,6 +19,7 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
   type User,
@@ -43,6 +44,7 @@ export const auth = typeof window !== 'undefined' ? getAuth(app) : null;
 export {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
   type User,

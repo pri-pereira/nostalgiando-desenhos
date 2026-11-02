@@ -474,11 +474,17 @@ export const SHOWS: Show[] = [
 import { db, collection, getDocs, getDoc, doc, setDoc, deleteDoc } from "@/lib/firebase";
 import catalogJson from "./catalog.json";
 import { persistCatalogToDiskServerFn } from "@/lib/serverSync";
+import {
+  normalizeCatalogList,
+  normalizeShow,
+  normalizeSlug,
+  normalizeTitle,
+} from "@/lib/normalizeCatalog";
 
 export const FEATURED = SHOWS[0]!;
 
 // Inicializa a lista padrão priorizando o catalog.json persistido no repositório
-export const DEFAULT_CATALOG_SHOWS: Show[] = (catalogJson as any[]).map((item) => {
+export const DEFAULT_CATALOG_SHOWS: Show[] = normalizeCatalogList((catalogJson as any[]).map((item) => {
   const matchShow = SHOWS.find((s) => s.slug === item.slug);
   return {
     slug: item.slug,
@@ -490,10 +496,17 @@ export const DEFAULT_CATALOG_SHOWS: Show[] = (catalogJson as any[]).map((item) =
     archiveId: item.archiveId || matchShow?.archiveId,
     episodes: item.episodes && item.episodes.length > 0 ? item.episodes : (matchShow?.episodes || []),
   };
-});
+}));
 
 const STORAGE_KEY = "nostalgiando_all_shows";
 const FIRESTORE_COLLECTION = "shows";
+const CATALOG_CACHE_KEY = "nostalgiando_catalog_cache_v2";
+const CACHE_TTL_MS = 30 * 60 * 1000;
+
+interface CatalogCacheData {
+  timestamp: number;
+  shows: Show[];
+}
 
 const notifyCatalogUpdated = (shows: Show[]) => {
   if (typeof window !== "undefined") {
@@ -506,29 +519,64 @@ const notifyCatalogUpdated = (shows: Show[]) => {
 export const getCachedShows = (): Show[] => {
   if (typeof window === "undefined") return DEFAULT_CATALOG_SHOWS;
   try {
+    // 1. Tenta carregar do cache v2 com TTL
+    const cacheRaw = localStorage.getItem(CATALOG_CACHE_KEY);
+    if (cacheRaw) {
+      const parsed: CatalogCacheData = JSON.parse(cacheRaw);
+      if (parsed && Array.isArray(parsed.shows) && parsed.shows.length > 0) {
+        return parsed.shows;
+      }
+    }
+
+    // 2. Fallback para storage legado
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed: Show[] = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return normalizeCatalogList(parsed);
       }
     }
   } catch (e) {
-    console.error("Erro ao ler cache:", e);
+    console.error("Erro ao ler cache de shows:", e);
   }
+
   // Se ainda não tiver nada no storage, inicializa com DEFAULT_CATALOG_SHOWS
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CATALOG_SHOWS));
+    localStorage.setItem(
+      CATALOG_CACHE_KEY,
+      JSON.stringify({ timestamp: Date.now(), shows: DEFAULT_CATALOG_SHOWS })
+    );
   } catch {}
   return DEFAULT_CATALOG_SHOWS;
 };
 
-export const getAllShows = async (): Promise<Show[]> => {
+/**
+ * Busca todos os shows com proteção de cache com TTL de 30 minutos.
+ * Evita o consumo excessivo de leituras no Firestore a cada reload de tela.
+ */
+export const getAllShows = async (forceRefresh: boolean = false): Promise<Show[]> => {
   if (typeof window === "undefined") {
     return DEFAULT_CATALOG_SHOWS;
   }
 
-  // 1. Sincroniza com o Firestore em nuvem (Fonte Suprema da Verdade para ambos os admins)
+  // 1. Validação de Cache com TTL (30 minutos)
+  if (!forceRefresh) {
+    try {
+      const cacheRaw = localStorage.getItem(CATALOG_CACHE_KEY);
+      if (cacheRaw) {
+        const parsed: CatalogCacheData = JSON.parse(cacheRaw);
+        const age = Date.now() - (parsed?.timestamp || 0);
+        if (age < CACHE_TTL_MS && Array.isArray(parsed?.shows) && parsed.shows.length > 0) {
+          return parsed.shows;
+        }
+      }
+    } catch (e) {
+      console.warn("Aviso ao ler cache TTL:", e);
+    }
+  }
+
+  // 2. Se o cache expirou ou forceRefresh foi solicitado, busca no Firestore
   try {
     if (db) {
       const fetchFromFirestore = async (): Promise<{ shows: Show[]; isEmpty: boolean } | null> => {
@@ -539,9 +587,11 @@ export const getAllShows = async (): Promise<Show[]> => {
           return { shows: [], isEmpty: true };
         }
 
-        const list = snapshot.docs.map((d) => {
+        const rawList = snapshot.docs.map((d) => {
           const data = d.data();
-          const matchDefault = DEFAULT_CATALOG_SHOWS.find((s) => s.slug === (data.slug || d.id));
+          const matchDefault = DEFAULT_CATALOG_SHOWS.find(
+            (s) => s.slug === (data.slug || d.id) || normalizeSlug(s.slug) === normalizeSlug(data.slug || d.id)
+          );
           return {
             slug: data.slug || d.id,
             title: data.title || matchDefault?.title || "",
@@ -551,9 +601,12 @@ export const getAllShows = async (): Promise<Show[]> => {
             synopsis: data.synopsis || matchDefault?.synopsis || "",
             archiveId: data.archiveId || matchDefault?.archiveId || undefined,
             episodes: Array.isArray(data.episodes) && data.episodes.length > 0 ? data.episodes : (matchDefault?.episodes || []),
+            createdAt: data.createdAt || undefined,
+            updatedAt: data.updatedAt || undefined,
           };
         });
 
+        const list = normalizeCatalogList(rawList);
         return { shows: list, isEmpty: false };
       };
 
@@ -563,19 +616,32 @@ export const getAllShows = async (): Promise<Show[]> => {
       // Se a nuvem tiver dados, mescla com os clássicos padrão para garantir completude
       if (result && !result.isEmpty && result.shows.length > 0) {
         const cloudShows = result.shows;
-        const cloudSlugs = new Set(cloudShows.map((s) => s.slug));
+        const cloudSlugs = new Set(cloudShows.map((s) => normalizeSlug(s.slug)));
         
         // Adiciona títulos padrão que porventura ainda não estejam na nuvem
         const merged = [...cloudShows];
         DEFAULT_CATALOG_SHOWS.forEach((defShow) => {
-          if (!cloudSlugs.has(defShow.slug)) {
+          if (!cloudSlugs.has(normalizeSlug(defShow.slug))) {
             merged.push(defShow);
           }
         });
 
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-        notifyCatalogUpdated(merged);
-        return merged;
+        const finalizedList = normalizeCatalogList(merged);
+
+        // Atualiza os caches com novo timestamp de TTL
+        try {
+          const cachePayload: CatalogCacheData = {
+            timestamp: Date.now(),
+            shows: finalizedList,
+          };
+          localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(cachePayload));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(finalizedList));
+        } catch (e) {
+          console.warn("Aviso ao salvar cache de catálogo:", e);
+        }
+
+        notifyCatalogUpdated(finalizedList);
+        return finalizedList;
       } else if (result && result.isEmpty) {
         // Apenas se a coleção Firestore estiver REALMENTE vazia (primeiro deploy)
         const localShows = getCachedShows();
@@ -852,31 +918,56 @@ export const resetCatalogToDefault = (): Show[] => {
 };
 
 export const getShow = async (slug: string): Promise<Show | undefined> => {
+  const cleanTargetSlug = normalizeSlug(slug);
+
+  // 1. Tenta buscar da nuvem (Firestore)
   if (typeof window !== "undefined" && db) {
     try {
-      const docRef = doc(db, FIRESTORE_COLLECTION, slug);
-      const docSnap = await getDoc(docRef);
+      // Tenta slug original
+      let docRef = doc(db, FIRESTORE_COLLECTION, slug);
+      let docSnap = await getDoc(docRef);
+
+      // Fallback para slug minúsculo se original não existir
+      if (!docSnap.exists() && slug !== cleanTargetSlug) {
+        docRef = doc(db, FIRESTORE_COLLECTION, cleanTargetSlug);
+        docSnap = await getDoc(docRef);
+      }
+
       if (docSnap.exists()) {
         const data = docSnap.data();
-        const matchShow = SHOWS.find((s) => s.slug === (data.slug || docSnap.id));
-        return {
+        const matchShow = SHOWS.find(
+          (s) =>
+            s.slug === (data.slug || docSnap.id) ||
+            normalizeSlug(s.slug) === cleanTargetSlug
+        );
+        return normalizeShow({
           slug: data.slug || docSnap.id,
-          title: data.title || "",
-          year: data.year || "Clássico",
-          category: (data.category as CategoryId) || "catalogo",
+          title: data.title || matchShow?.title || "",
+          year: data.year || matchShow?.year || "Clássico",
+          category: (data.category as CategoryId) || matchShow?.category || "catalogo",
           poster: data.poster || matchShow?.poster || "",
-          synopsis: data.synopsis || "",
+          synopsis: data.synopsis || matchShow?.synopsis || "",
           archiveId: data.archiveId || matchShow?.archiveId || undefined,
-          episodes: data.episodes || [],
-        };
+          episodes: data.episodes || matchShow?.episodes || [],
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+        });
       }
     } catch (err) {
       console.warn("Aviso ao buscar show direto do Firestore:", err);
     }
   }
 
+  // 2. Busca na lista geral com correspondência resiliente a maiúsculas/minúsculas e acentos
   const allShows = await getAllShows();
-  return allShows.find((s) => s.slug === slug || (s as any).id === slug);
+  const found = allShows.find(
+    (s) =>
+      s.slug === slug ||
+      s.slug.toLowerCase() === slug.toLowerCase() ||
+      normalizeSlug(s.slug) === cleanTargetSlug
+  );
+
+  return found ? normalizeShow(found) : undefined;
 };
 
 export const shelves = async () => {
@@ -935,14 +1026,21 @@ export const importCatalog = async (newShows: Show[]): Promise<Show[]> => {
 
 // Mantido para compatibilidade síncrona onde precisar (inclui títulos dinâmicos salvos no cliente)
 export const getStaticShow = (slug: string): Show | undefined => {
+  const clean = normalizeSlug(slug);
+  const matchFn = (s: Show) =>
+    s.slug === slug ||
+    s.slug.toLowerCase() === slug.toLowerCase() ||
+    normalizeSlug(s.slug) === clean;
+
   if (typeof window !== "undefined") {
     try {
       const cached = getCachedShows();
-      const found = cached.find((s) => s.slug === slug);
-      if (found) return found;
+      const found = cached.find(matchFn);
+      if (found) return normalizeShow(found);
     } catch {}
   }
-  return DEFAULT_CATALOG_SHOWS.find((s) => s.slug === slug) || SHOWS.find((s) => s.slug === slug);
+  const defaultFound = DEFAULT_CATALOG_SHOWS.find(matchFn) || SHOWS.find(matchFn);
+  return defaultFound ? normalizeShow(defaultFound) : undefined;
 };
 
 
