@@ -60,3 +60,4 @@ xml += "</urlset>\n";
 const outputPath = path.resolve(__dirname, "../public/sitemap.xml");
 fs.writeFileSync(outputPath, xml, "utf8");
 console.log(`Sitemap gerado com sucesso: ${catalog.length} desenhos incluídos.`);
+

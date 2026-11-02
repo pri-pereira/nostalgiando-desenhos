@@ -474,3 +474,4 @@ export function TmdbBatchSyncTab({ shows, onShowsUpdated }: TmdbBatchSyncTabProp
     </div>
   );
 }
+
