@@ -236,3 +236,4 @@ export function PixCheckoutModal({ isOpen, onClose, plan }: PixCheckoutModalProp
     </div>
   );
 }
+

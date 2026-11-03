@@ -222,3 +222,4 @@ export async function deleteDrawingRequest(requestId: string): Promise<void> {
   if (!db) return;
   await deleteDoc(doc(db, REQUESTS_COLLECTION, requestId));
 }
+
