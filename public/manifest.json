@@ -1,13 +1,13 @@
 {
   "name": "Nostalgiando Desenhos",
   "short_name": "Nostalgiando",
-  "description": "Streaming de desenhos clássicos e animações retrô.",
-  "start_url": "/",
-  "id": "/",
+  "description": "Streaming de desenhos clássicos, animes retrô e produções nostálgicas da TV.",
+  "start_url": "/?source=pwa",
+  "id": "/?source=pwa",
   "display": "standalone",
-  "background_color": "#0d0c13",
-  "theme_color": "#0d0c13",
-  "orientation": "any",
+  "orientation": "portrait-primary",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
   "icons": [
     {
       "src": "/icon-192x192.png",
@@ -32,6 +32,29 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Sintonizar TV",
+      "short_name": "Sintonizar",
+      "description": "Assista a um desenho clássico sorteado aleatoriamente",
+      "url": "/?action=tune",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Catálogo Completo",
+      "short_name": "Catálogo",
+      "description": "Navegue por todos os desenhos por década e gênero",
+      "url": "/#catalogo",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Pedir Desenho",
+      "short_name": "Pedidos",
+      "description": "Peça seu desenho da infância ou vote nos mais pedidos",
+      "url": "/pedidos?novo=true",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }

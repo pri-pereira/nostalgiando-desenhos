@@ -34,6 +34,22 @@ xml += "    <changefreq>daily</changefreq>\n";
 xml += "    <priority>1.0</priority>\n";
 xml += "  </url>\n";
 
+// Mural de Pedidos Comunitários
+xml += "  <url>\n";
+xml += `    <loc>${baseUrl}/pedidos</loc>\n`;
+xml += `    <lastmod>${today}</lastmod>\n`;
+xml += "    <changefreq>daily</changefreq>\n";
+xml += "    <priority>0.9</priority>\n";
+xml += "  </url>\n";
+
+// Planos VIP
+xml += "  <url>\n";
+xml += `    <loc>${baseUrl}/vip</loc>\n`;
+xml += `    <lastmod>${today}</lastmod>\n`;
+xml += "    <changefreq>monthly</changefreq>\n";
+xml += "    <priority>0.8</priority>\n";
+xml += "  </url>\n";
+
 // Categorias
 for (const cat of categories) {
   xml += "  <url>\n";

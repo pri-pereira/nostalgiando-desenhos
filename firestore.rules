@@ -36,18 +36,29 @@ service cloud.firestore {
     }
 
     // Coleção de Perfis de Usuários
-    // - Usuários autenticados podem ler e gerenciar seus próprios dados
-    // - Zero Trust: Usuário comum não pode atribuir a si mesmo o papel de admin
+    // - Usuários autenticados podem ler seus próprios dados; Admins podem ler todos
+    // - Zero Trust: Usuário comum NUNCA pode alterar role, isAdmin, isVip, plan, vipExpiresAt, paymentStatus
     // - Administradores têm acesso total de leitura e escrita
     match /users/{userId} {
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      
       allow create: if request.auth != null && request.auth.uid == userId && (
-        !('role' in request.resource.data) || request.resource.data.role != 'admin' || isAdmin()
+        isAdmin() || (
+          (!('role' in request.resource.data) || request.resource.data.role != 'admin') &&
+          (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin != true) &&
+          (!('isVip' in request.resource.data) || request.resource.data.isVip != true) &&
+          (!('plan' in request.resource.data) || request.resource.data.plan == 'free')
+        )
       );
+
       allow update: if request.auth != null && (
-        (request.auth.uid == userId && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role || isAdmin())) ||
-        isAdmin()
+        isAdmin() || (
+          request.auth.uid == userId &&
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['role', 'isAdmin', 'isVip', 'plan', 'vipExpiresAt', 'paymentStatus', 'planName', 'planActivatedAt'])
+        )
       );
+
       allow delete: if isAdmin();
       
       // Subcoleção de Favoritos do Usuário
@@ -61,6 +72,29 @@ service cloud.firestore {
       }
     }
 
+    // Coleção de Pedidos Comunitários de Desenhos (Mural de Pedidos e Votação)
+    // - Qualquer visitante pode ler os pedidos do mural
+    // - Usuário autenticado pode criar pedido (título obrigatório com até 100 caracteres)
+    // - Usuário comum só pode dar Upvote (atualizar estritamente votedBy e votesCount)
+    // - Administrador pode aprovar, mudar status, converter em show e excluir
+    match /drawing_requests/{requestId} {
+      allow read: if true;
+
+      allow create: if request.auth != null &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.title.size() <= 100 &&
+        request.resource.data.requestedByUid == request.auth.uid;
+
+      allow update: if request.auth != null && (
+        isAdmin() || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votedBy', 'votesCount'])
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
     // Coleção de Reporte de Links Quebrados (Manutenção On-Demand)
     // - Criação permitida apenas para usuários autenticados com payload sanitizado
     // - Leitura e gestão estritamente reservadas aos administradores
@@ -69,6 +103,12 @@ service cloud.firestore {
         request.resource.data.slug is string && 
         request.resource.data.episodeNumber is number;
       allow read, update, delete: if isAdmin();
+    }
+
+    // Coleção de Registro de Pagamentos Processados (Idempotência de Webhook)
+    // - Acesso restrito a administradores
+    match /processed_payments/{paymentId} {
+      allow read, write: if isAdmin();
     }
 
     // Bloqueia qualquer outra coleção não mapeada por padrão

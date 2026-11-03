@@ -9,6 +9,9 @@ export interface UserProfile {
   paymentStatus: "ativo" | "pendente" | "cancelado";
   planName?: string;
   planActivatedAt?: string;
+  isVip?: boolean;
+  plan?: "free" | "monthly" | "annual" | "admin";
+  vipExpiresAt?: string;
   createdAt: string;
   lastLogin: string;
   status: "ativo" | "inativo";
@@ -40,6 +43,17 @@ export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   const clean = email.trim().toLowerCase();
   return ADMIN_EMAILS.some((adm) => adm.toLowerCase() === clean);
+}
+
+/**
+ * Verifica com segurança se o perfil possui status VIP ativo (ou se é Administrador)
+ */
+export function isVipActive(user: UserProfile | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  if (user.isVip !== true) return false;
+  if (!user.vipExpiresAt) return true;
+  return new Date(user.vipExpiresAt).getTime() > Date.now();
 }
 
 /**
@@ -91,6 +105,9 @@ export async function createUserProfile(
     paymentStatus: isMasterAdmin ? "ativo" : "pendente",
     planName: isMasterAdmin ? "Admin" : undefined,
     planActivatedAt: isMasterAdmin ? new Date().toISOString() : undefined,
+    isVip: isMasterAdmin,
+    plan: isMasterAdmin ? "admin" : "free",
+    vipExpiresAt: undefined,
     createdAt: new Date().toISOString(),
     lastLogin: new Date().toISOString(),
     status: "ativo",
@@ -140,13 +157,18 @@ export async function ensureUserProfile(
       if (!data.status) {
         updatedFields.status = "ativo";
       }
-      // Garantir que admins sempre tenham paymentStatus=ativo
+      // Garantir que admins sempre tenham paymentStatus=ativo e isVip=true
       if (isMasterAdmin && data.paymentStatus !== "ativo") {
         updatedFields.paymentStatus = "ativo";
         updatedFields.planName = "Admin";
+        updatedFields.isVip = true;
+        updatedFields.plan = "admin";
         if (!data.planActivatedAt) {
           updatedFields.planActivatedAt = new Date().toISOString();
         }
+      } else if (isMasterAdmin && !data.isVip) {
+        updatedFields.isVip = true;
+        updatedFields.plan = "admin";
       }
       // Inicializar paymentStatus se não existir
       if (!data.paymentStatus) {
@@ -164,6 +186,9 @@ export async function ensureUserProfile(
         paymentStatus: (isMasterAdmin ? "ativo" : (data.paymentStatus || "pendente")) as "ativo" | "pendente" | "cancelado",
         planName: isMasterAdmin ? "Admin" : data.planName,
         planActivatedAt: isMasterAdmin ? (data.planActivatedAt || new Date().toISOString()) : data.planActivatedAt,
+        isVip: isMasterAdmin ? true : Boolean(data.isVip),
+        plan: isMasterAdmin ? "admin" : (data.plan || "free"),
+        vipExpiresAt: data.vipExpiresAt || undefined,
         createdAt: data.createdAt || new Date().toISOString(),
         lastLogin: new Date().toISOString(),
         status: (data.status as "ativo" | "inativo") || "ativo",
@@ -197,6 +222,9 @@ export async function updateUserProfileSafe(
     delete (payload as any).paymentStatus;
     delete (payload as any).planName;
     delete (payload as any).planActivatedAt;
+    delete (payload as any).isVip;
+    delete (payload as any).plan;
+    delete (payload as any).vipExpiresAt;
 
     if (Object.keys(payload).length > 0) {
       const userRef = doc(db, USERS_COLLECTION, uid);
@@ -245,6 +273,62 @@ export async function toggleUserStatus(uid: string, status: "ativo" | "inativo")
     await updateDoc(doc(db, USERS_COLLECTION, uid), { status });
   } catch (err) {
     console.error("Erro ao atualizar status do usuário:", err);
+    throw err;
+  }
+}
+
+/**
+ * Ativa ou renova o status VIP de um usuário (Função Administrativa / Webhook)
+ */
+export async function activateUserVip(
+  uid: string,
+  days: number,
+  plan: "monthly" | "annual" | "admin" = "monthly"
+): Promise<void> {
+  if (!db) return;
+  try {
+    const expiresDate = new Date();
+    expiresDate.setDate(expiresDate.getDate() + days);
+    const vipExpiresAt = expiresDate.toISOString();
+
+    const planName =
+      plan === "annual" ? "VIP Anual - Mestre dos Clássicos" : plan === "admin" ? "Admin" : "VIP Mensal - Sábado Animado";
+
+    const fields = {
+      isVip: true,
+      plan,
+      vipExpiresAt,
+      paymentStatus: "ativo",
+      planName,
+      planActivatedAt: new Date().toISOString(),
+    };
+
+    const userRef = doc(db, USERS_COLLECTION, uid);
+    await updateDoc(userRef, fields);
+  } catch (err) {
+    console.error("Erro ao ativar status VIP do usuário:", err);
+    throw err;
+  }
+}
+
+/**
+ * Revoga o status VIP de um usuário (Função Administrativa)
+ */
+export async function revokeUserVip(uid: string): Promise<void> {
+  if (!db) return;
+  try {
+    const fields = {
+      isVip: false,
+      plan: "free",
+      vipExpiresAt: new Date().toISOString(),
+      paymentStatus: "cancelado",
+      planName: "Nostálgico Free",
+    };
+
+    const userRef = doc(db, USERS_COLLECTION, uid);
+    await updateDoc(userRef, fields);
+  } catch (err) {
+    console.error("Erro ao revogar VIP do usuário:", err);
     throw err;
   }
 }
@@ -303,6 +387,9 @@ export async function getAllUsers(): Promise<UserProfile[]> {
         paymentStatus: (data.paymentStatus as "ativo" | "pendente" | "cancelado") || "pendente",
         planName: data.planName || undefined,
         planActivatedAt: data.planActivatedAt || undefined,
+        isVip: data.role === "admin" ? true : Boolean(data.isVip),
+        plan: (data.role === "admin" ? "admin" : data.plan || "free") as any,
+        vipExpiresAt: data.vipExpiresAt || undefined,
         createdAt: data.createdAt || new Date().toISOString(),
         lastLogin: data.lastLogin || data.createdAt || new Date().toISOString(),
         status: (data.status as "ativo" | "inativo") || "ativo",

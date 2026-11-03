@@ -50,6 +50,8 @@ import {
   XCircle,
   CreditCard,
   Hourglass,
+  Crown,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import {
@@ -74,6 +76,8 @@ import {
   toggleUserStatus,
   ensureUserProfile,
   updateUserPaymentStatus,
+  activateUserVip,
+  revokeUserVip,
   type UserProfile,
   ADMIN_EMAIL,
   ADMIN_EMAILS,
@@ -93,6 +97,7 @@ import { TmdbSearchModal } from "@/components/admin/TmdbSearchModal";
 import { EpisodesBatchManager } from "@/components/admin/EpisodesBatchManager";
 import { TmdbBatchSyncTab } from "@/components/admin/TmdbBatchSyncTab";
 import { AdminBentoGrid } from "@/components/admin/AdminBentoGrid";
+import { AdminRequestsTab } from "@/components/admin/AdminRequestsTab";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -111,6 +116,7 @@ type AdminTab =
   | "adicionar"
   | "categorias"
   | "usuarios"
+  | "pedidos"
   | "manutencao"
   | "tmdb";
 
@@ -724,9 +730,10 @@ function AdminDashboard() {
   const menuItems: { id: AdminTab; icon: any; label: string }[] = [
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { id: "titulos", icon: Film, label: "Todos os Títulos" },
+    { id: "pedidos", icon: MessageSquare, label: "Pedidos Comunidade" },
     { id: "tmdb", icon: Sparkles, label: "Sincronizador TMDB" },
     { id: "manutencao", icon: ShieldAlert, label: "Links Quebrados" },
-    { id: "usuarios", icon: Users, label: "Usuários" },
+    { id: "usuarios", icon: Users, label: "Usuários & VIP" },
     { id: "adicionar", icon: Plus, label: "Adicionar Novo" },
     { id: "categorias", icon: FolderOpen, label: "Categorias" },
   ];
@@ -948,6 +955,14 @@ function AdminDashboard() {
                 <TmdbBatchSyncTab
                   shows={shows}
                   onShowsUpdated={(updated) => setShows(updated)}
+                />
+              )}
+              {activeTab === "pedidos" && (
+                <AdminRequestsTab
+                  onConvertToCatalog={(req) => {
+                    setActiveTab("adicionar");
+                    toast.info(`Preenchendo cadastro com o pedido: ${req.title}`);
+                  }}
                 />
               )}
               {activeTab === "usuarios" && (
@@ -2598,12 +2613,53 @@ function AdminUsersTab({
     }
   };
 
-  const paymentBadge = (status: UserProfile["paymentStatus"], role: string, email: string) => {
+  const handleActivateVip = async (targetUser: UserProfile, days: number, plan: "monthly" | "annual") => {
+    setUpdatingUid(targetUser.uid);
+    try {
+      await activateUserVip(targetUser.uid, days, plan);
+      toast.success(`VIP (${days} dias) ativado para ${targetUser.name}! 👑`);
+      onRefresh();
+    } catch (err: any) {
+      toast.error("Erro ao ativar VIP: " + (err?.message || "Tente novamente"));
+    } finally {
+      setUpdatingUid(null);
+    }
+  };
+
+  const handleRevokeVip = async (targetUser: UserProfile) => {
+    if (!window.confirm(`Deseja revogar o status VIP de ${targetUser.name}?`)) return;
+    setUpdatingUid(targetUser.uid);
+    try {
+      await revokeUserVip(targetUser.uid);
+      toast.success(`VIP revogado para ${targetUser.name}.`);
+      onRefresh();
+    } catch (err: any) {
+      toast.error("Erro ao revogar VIP: " + (err?.message || "Tente novamente"));
+    } finally {
+      setUpdatingUid(null);
+    }
+  };
+
+  const paymentBadge = (status: UserProfile["paymentStatus"], role: string, email: string, isVip?: boolean, vipExpiresAt?: string) => {
     if (role === "admin" || isAdminEmail(email)) {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-500/15 text-orange-400 border border-orange-500/30">
-          <ShieldCheck className="h-3.5 w-3.5" /> Admin
+          <ShieldCheck className="h-3.5 w-3.5" /> Admin Master
         </span>
+      );
+    }
+    if (isVip) {
+      return (
+        <div className="inline-flex flex-col items-center">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm">
+            <Crown className="h-3 w-3" /> VIP Ativo
+          </span>
+          {vipExpiresAt && (
+            <span className="text-[10px] text-muted-foreground mt-0.5">
+              Até {new Date(vipExpiresAt).toLocaleDateString("pt-BR")}
+            </span>
+          )}
+        </div>
       );
     }
     switch (status) {
@@ -2845,14 +2901,14 @@ function AdminUsersTab({
                         </div>
                       </td>
 
-                      {/* Badge Assinatura */}
+                      {/* Badge Assinatura / VIP */}
                       <td className="px-4 py-4 text-center">
-                        {paymentBadge(u.paymentStatus, u.role, u.email)}
+                        {paymentBadge(u.paymentStatus, u.role, u.email, u.isVip, u.vipExpiresAt)}
                       </td>
 
                       {/* Ações */}
                       <td className="px-4 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           {isMe ? (
                             <span className="text-[11px] font-semibold text-muted-foreground/60 px-2 py-1">
                               Protegido
@@ -2863,33 +2919,52 @@ function AdminUsersTab({
                             </span>
                           ) : (
                             <>
-                              {/* Botões de plano */}
-                              {u.paymentStatus !== "ativo" && (
-                                <button
-                                  onClick={() => handleChangePayment(u, "ativo")}
-                                  disabled={updatingUid === u.uid}
-                                  className="text-[11px] px-2.5 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer disabled:opacity-50 font-bold"
-                                  title="Ativar plano"
-                                >
-                                  {updatingUid === u.uid ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Ativar"}
-                                </button>
-                              )}
-                              {u.paymentStatus === "ativo" && (
-                                <button
-                                  onClick={() => handleChangePayment(u, "cancelado")}
-                                  disabled={updatingUid === u.uid}
-                                  className="text-[11px] px-2.5 py-1.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer disabled:opacity-50 font-bold"
-                                  title="Cancelar plano"
-                                >
-                                  {updatingUid === u.uid ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Cancelar"}
-                                </button>
+                              {/* Botões de Ação VIP */}
+                              {!u.isVip ? (
+                                <>
+                                  <button
+                                    onClick={() => handleActivateVip(u, 30, "monthly")}
+                                    disabled={updatingUid === u.uid}
+                                    className="text-[10px] px-2 py-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-bold transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                                    title="Ativar VIP por 30 dias"
+                                  >
+                                    <Crown className="h-3 w-3" /> VIP 30d
+                                  </button>
+                                  <button
+                                    onClick={() => handleActivateVip(u, 365, "annual")}
+                                    disabled={updatingUid === u.uid}
+                                    className="text-[10px] px-2 py-1 rounded-lg border border-amber-500/60 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 font-black transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                                    title="Ativar VIP Anual (1 ano)"
+                                  >
+                                    <Crown className="h-3 w-3" /> 1 Ano
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => handleActivateVip(u, 30, "monthly")}
+                                    disabled={updatingUid === u.uid}
+                                    className="text-[10px] px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-bold transition-all cursor-pointer disabled:opacity-50"
+                                    title="Estender VIP por mais 30 dias"
+                                  >
+                                    +30d
+                                  </button>
+                                  <button
+                                    onClick={() => handleRevokeVip(u)}
+                                    disabled={updatingUid === u.uid}
+                                    className="text-[10px] px-2 py-1 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 font-bold transition-all cursor-pointer disabled:opacity-50"
+                                    title="Revogar status VIP"
+                                  >
+                                    Revogar VIP
+                                  </button>
+                                </>
                               )}
 
                               {/* Desativar / Ativar conta */}
                               <button
                                 onClick={() => handleToggleStatus(u)}
                                 disabled={updatingUid === u.uid}
-                                className={`text-[11px] px-2 py-1.5 rounded-xl border transition-all cursor-pointer disabled:opacity-50 ${
+                                className={`text-[10px] px-2 py-1 rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
                                   u.status === "ativo"
                                     ? "border-white/10 bg-white/5 text-muted-foreground hover:bg-yellow-500/10 hover:text-yellow-400 hover:border-yellow-500/30"
                                     : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
@@ -2902,10 +2977,10 @@ function AdminUsersTab({
                               {/* Excluir */}
                               <button
                                 onClick={() => setUserToDelete(u)}
-                                className="p-1.5 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-500/15 border border-transparent hover:border-red-500/30 transition-all cursor-pointer"
+                                className="p-1 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/15 border border-transparent hover:border-red-500/30 transition-all cursor-pointer"
                                 title="Excluir usuário"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5" />
                               </button>
                             </>
                           )}

@@ -181,3 +181,5 @@ export async function findBestTmdbMatch(
   }
 }
 
+export const searchMultiTmdb = searchTmdb;
+

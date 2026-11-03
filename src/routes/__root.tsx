@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/authContext";
 import { Toaster } from "../components/ui/sonner";
+import { InstallPwaPrompt } from "../components/pwa/InstallPwaPrompt";
+import { MobileBottomNav } from "../components/MobileBottomNav";
 
 function NotFoundComponent() {
   return (
@@ -78,14 +80,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Nostalgiando Desenhos" },
       { name: "description", content: "Streaming de desenhos clássicos e animações retrô." },
       { property: "og:title", content: "Nostalgiando Desenhos" },
       { property: "og:description", content: "Streaming de desenhos clássicos e animações retrô." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "theme-color", content: "#0d0c13" },
+      { name: "theme-color", content: "#09090b" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "Nostalgiando" },
@@ -142,8 +144,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <InstallPwaPrompt />
+        <div className="min-h-screen flex flex-col pb-16 sm:pb-0">
+          <Outlet />
+        </div>
+        <MobileBottomNav />
         <Toaster position="top-right" richColors />
       </AuthProvider>
     </QueryClientProvider>

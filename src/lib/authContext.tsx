@@ -16,21 +16,26 @@ import {
   ADMIN_EMAILS,
   isAdminEmail,
   checkIsAdmin,
+  isVipActive,
   saveAdminTotpSecret,
   getAdminTotpSecret,
   resetAdminTotpSecret,
+  type UserProfile,
 } from "./users";
 import { verifyTotpCode } from "./totp";
 import { ENABLE_ADMIN_2FA } from "./authConfig";
 
 interface AuthContextType {
   user: User | null;
+  profile: UserProfile | null;
   isAdmin: boolean;
+  isVip: boolean;
   is2FAVerified: boolean;
   is2FAEnabled: boolean;
   isLoading: boolean;
   isTotpConfigured: boolean;
   totpSecret: string | null;
+  refreshProfile: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -49,11 +54,34 @@ const TWO_FA_SESSION_KEY = "nostalgiando_admin_2fa_ok";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isVip, setIsVip] = useState(false);
   const [is2FAVerified, setIs2FAVerified] = useState(!ENABLE_ADMIN_2FA);
   const [isTotpConfigured, setIsTotpConfigured] = useState(false);
   const [totpSecret, setTotpSecret] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const fetchUserProfile = async (firebaseUser: User | null) => {
+    if (!firebaseUser?.uid || !firebaseUser.email) {
+      setProfile(null);
+      setIsVip(false);
+      return;
+    }
+    try {
+      const p = await ensureUserProfile(firebaseUser.uid, firebaseUser.email);
+      setProfile(p);
+      setIsVip(isVipActive(p));
+    } catch (err) {
+      console.warn("Aviso ao carregar perfil do usuário:", err);
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchUserProfile(user);
+    }
+  };
 
   // Observar estado de autenticação do Firebase
   useEffect(() => {
@@ -65,12 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        if (firebaseUser.email) {
-          ensureUserProfile(firebaseUser.uid, firebaseUser.email).catch(() => {});
-        }
+        fetchUserProfile(firebaseUser);
         const isMaster = await checkIsAdmin(firebaseUser.uid, firebaseUser.email);
         if (isMaster) {
           setIsAdmin(true);
+          setIsVip(true);
 
           if (!ENABLE_ADMIN_2FA) {
             // Quando o 2FA está desabilitado temporariamente, libera o acesso direto
@@ -96,7 +123,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsTotpConfigured(false);
         }
       } else {
+        setProfile(null);
         setIsAdmin(false);
+        setIsVip(false);
         setIs2FAVerified(!ENABLE_ADMIN_2FA);
         setTotpSecret(null);
         setIsTotpConfigured(false);
@@ -254,12 +283,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        profile,
         isAdmin,
+        isVip,
         is2FAVerified,
         is2FAEnabled: ENABLE_ADMIN_2FA,
         isLoading,
         isTotpConfigured,
         totpSecret,
+        refreshProfile,
         login,
         register,
         resetPassword,

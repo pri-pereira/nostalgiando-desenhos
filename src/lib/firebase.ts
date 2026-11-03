@@ -12,6 +12,11 @@ import {
   updateDoc,
   query,
   orderBy,
+  where,
+  limit,
+  arrayUnion,
+  arrayRemove,
+  increment,
   onSnapshot,
   serverTimestamp,
 } from "firebase/firestore";
@@ -58,6 +63,11 @@ export {
   updateDoc,
   query,
   orderBy,
+  where,
+  limit,
+  arrayUnion,
+  arrayRemove,
+  increment,
   onSnapshot,
   serverTimestamp,
 };

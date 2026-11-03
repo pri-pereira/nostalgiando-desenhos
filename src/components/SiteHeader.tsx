@@ -11,6 +11,7 @@ import {
   X,
   Sparkles,
   Film,
+  Crown,
 } from "lucide-react";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/authContext";
@@ -18,7 +19,7 @@ import { getCachedShows, type Show } from "@/data/shows";
 import { normalizeYear } from "@/lib/normalizeCatalog";
 
 export function SiteHeader() {
-  const { user, isAdmin, logout, logoutAdmin } = useAuth();
+  const { user, isAdmin, isVip, logout, logoutAdmin } = useAuth();
   const navigate = useNavigate();
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -246,6 +247,26 @@ export function SiteHeader() {
               <span className="md:hidden">Aleatório</span>
             </button>
 
+            {/* Botão Pedidos da Comunidade */}
+            <Link
+              to="/pedidos"
+              className="hidden lg:flex items-center gap-1.5 h-10 px-3.5 rounded-full border border-white/10 bg-secondary/40 text-muted-foreground hover:text-amber-400 hover:border-amber-500/30 transition-all text-xs font-bold active:scale-95"
+              title="Mural de pedidos de desenhos e votação"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <span>Pedidos</span>
+            </Link>
+
+            {/* Botão Clube VIP Destaque */}
+            <Link
+              to="/vip"
+              className="flex items-center gap-1.5 h-10 px-3 sm:px-3.5 rounded-full border border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-600/20 text-amber-300 hover:text-white hover:border-amber-400 transition-all text-xs font-black shadow-[0_0_15px_rgba(245,158,11,0.25)] active:scale-95"
+              title="Clube Nostalgia VIP"
+            >
+              <Crown className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+              <span>VIP</span>
+            </Link>
+
             {/* Botão Admin */}
             <button
               onClick={handleAdminClick}
@@ -279,7 +300,14 @@ export function SiteHeader() {
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-white/15 bg-zinc-950/95 backdrop-blur-2xl shadow-2xl p-2 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
                     <div className="px-3.5 py-2.5 border-b border-white/10 mb-2">
-                      <p className="text-xs font-semibold text-muted-foreground">Conectado como</p>
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <p className="text-xs font-semibold text-muted-foreground">Conectado como</p>
+                        {isVip && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black border border-amber-500/30">
+                            <Crown className="h-2.5 w-2.5" /> VIP
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm font-bold text-foreground truncate">{user.email}</p>
                     </div>
 
@@ -290,6 +318,24 @@ export function SiteHeader() {
                     >
                       <User className="h-4 w-4 text-primary" />
                       Meu Perfil
+                    </Link>
+
+                    <Link
+                      to="/pedidos"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-foreground hover:bg-secondary/60 transition-colors"
+                    >
+                      <Sparkles className="h-4 w-4 text-amber-400" />
+                      Mural de Pedidos
+                    </Link>
+
+                    <Link
+                      to="/vip"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-amber-300 hover:bg-amber-500/15 transition-colors"
+                    >
+                      <Crown className="h-4 w-4 text-amber-400" />
+                      Clube VIP
                     </Link>
 
                     {isAdmin && (
